@@ -1,0 +1,14 @@
+native-host/build/
+bin/*
+!bin/ps-host.exe
+node_modules/
+dist/
+installer/
+www/
+*.jks
+keystore.properties
+android/keystore.properties
+android/app/build/
+android/.gradle/
+android/build/
+android/local.properties

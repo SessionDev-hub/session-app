@@ -1,0 +1,107 @@
+{
+  "name": "private-studio",
+  "version": "0.12.2",
+  "description": "Session: record, create and share. A private desktop studio with VST3 support.",
+  "author": "Session",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "check": "node scripts/smoke-test.js && node scripts/native-test.js",
+    "dist": "electron-builder --win nsis portable --x64",
+    "dist:dir": "electron-builder --win dir --x64",
+    "build:www": "node scripts/build-www.js",
+    "android:sync": "node scripts/build-www.js && npx cap sync android"
+  },
+  "dependencies": {
+    "electron-updater": "6.3.9"
+  },
+  "devDependencies": {
+    "electron": "33.4.11",
+    "electron-builder": "25.1.8",
+    "@capacitor/cli": "6.2.1",
+    "@capacitor/core": "6.2.1",
+    "@capacitor/android": "6.2.1",
+    "@capacitor/filesystem": "6.0.3",
+    "@capacitor/share": "6.0.3",
+    "javascript-obfuscator": "4.1.1"
+  },
+  "build": {
+    "appId": "com.session.studio",
+    "productName": "Session",
+    "copyright": "Session",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "plugins/**/*",
+      "assets/**/*",
+      "native/bridge.js",
+      "native/vault.js",
+      "native/updates.js",
+      "native/sqljs/**/*",
+      "updates.config.json",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "assets/icon.ico",
+      "artifactName": "Session-${version}-${arch}.${ext}",
+      "extraResources": [
+        {
+          "from": "bin/ps-host.exe",
+          "to": "bin/ps-host.exe"
+        }
+      ]
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "category": "public.app-category.music",
+      "icon": "assets/icon.icns",
+      "artifactName": "Session-${version}-mac-${arch}.${ext}",
+      "identity": null,
+      "darkModeSupport": true
+    },
+    "dmg": {
+      "artifactName": "Session-${version}-mac-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Session",
+      "artifactName": "Session-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "Session-Portable-${version}.${ext}"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "SessionDev-hub",
+      "repo": "Session-Releases",
+      "releaseType": "release"
+    }
+  },
+  "license": "UNLICENSED",
+  "private": true
+}

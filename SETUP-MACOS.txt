@@ -1,0 +1,64 @@
+=================================================================
+ Session - Build for macOS (and Windows) with GitHub Actions
+=================================================================
+
+Why this exists
+---------------
+You don't have a Mac, and a Mac app can only be built on a Mac. GitHub gives you
+free Mac build machines ("Actions"), so we let GitHub build Session for BOTH
+Windows and macOS and publish them to your Session-Releases page automatically.
+
+After this one-time setup, releasing = bump the version, push, click "Run workflow".
+It builds Windows + Mac, protects (scrambles) the code, and uploads both.
+
+Mac notes (important):
+ - The Mac app is UNSIGNED for now (no Apple Developer account yet). The first time
+   a Mac user opens it, they right-click the app -> Open -> Open (to get past the
+   "unidentified developer" warning). Normal for unsigned apps.
+ - Mac AUTO-UPDATE does not work until the app is signed (Apple requirement). Mac
+   users re-download new versions for now; Windows auto-update still works.
+ - VST3 is Windows-only; everything else works on Mac.
+
+
+ONE-TIME SETUP
+--------------
+1. Install GitHub Desktop (no command line needed):
+   https://desktop.github.com  -> install -> sign in as SessionDev-hub.
+
+2. Put your source in a PRIVATE GitHub repo:
+   - Open GitHub Desktop -> File -> Add Local Repository -> pick your
+     "private-studio" folder (the one with package.json).
+   - It'll say it's not a git repo -> click "create a repository" -> Create.
+   - Click "Publish repository" (top bar). KEEP "Keep this code private" CHECKED.
+     Name it "Session-app". Publish.
+   (Your source stays private; only the finished, scrambled builds get published.)
+
+3. Give Actions a token so it can upload to Session-Releases:
+   - On github.com open your new Session-app repo -> Settings -> "Secrets and
+     variables" -> Actions -> "New repository secret".
+   - Name:  GH_TOKEN
+   - Secret: a classic token with the "repo" box ticked (the same kind you use for
+     release.cmd). Make a fresh one at github.com/settings/tokens if needed.
+   - Add secret.
+
+
+RELEASING A NEW VERSION
+-----------------------
+1. Raise the version in package.json (e.g. 0.11.1 -> 0.11.2). Always go up.
+2. In GitHub Desktop: type a short summary, click "Commit to main", then "Push origin".
+3. On github.com open Session-app -> "Actions" tab -> "Build & Release" ->
+   "Run workflow" -> Run.
+4. Wait ~5-10 minutes. Windows builds first, then Mac. When both are green, open
+   https://github.com/SessionDev-hub/Session-Releases/releases - the new version
+   has the Windows installer AND the Mac .dmg.
+
+That's it. Testers on Windows auto-update; Mac testers grab the .dmg from that page.
+
+
+Troubleshooting
+---------------
+- Actions run fails on the Windows job: open the failed step's log and send it to me.
+- "Resource not accessible" when publishing: the GH_TOKEN secret is missing or lacks
+  the "repo" scope - redo step 3 with a classic token that has "repo" ticked.
+- Mac app "is damaged / can't be opened": that's unsigned Gatekeeper - right-click
+  the app -> Open -> Open. (Signing later removes this.)

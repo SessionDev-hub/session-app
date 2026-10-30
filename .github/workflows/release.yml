@@ -1,0 +1,41 @@
+name: Build & Release
+# Builds Session for Windows AND macOS and publishes both to the Session-Releases repo.
+# Trigger it by pushing a tag like v0.11.2, or run it by hand from the Actions tab.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Build & publish (Windows)
+        run: node scripts/build-release.js --publish
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+  mac:
+    needs: windows   # publish after Windows so the release already exists (no race)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Build & publish (macOS, unsigned)
+        run: node scripts/build-release.js --publish
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'

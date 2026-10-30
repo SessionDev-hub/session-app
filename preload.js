@@ -1,0 +1,29 @@
+const { contextBridge, ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('studioHost', {
+  listPlugins: () => ipcRenderer.invoke('plugins:list'),
+  readPlugin: (url) => ipcRenderer.invoke('plugins:read', url),
+  importPlugins: () => ipcRenderer.invoke('plugins:import'),
+  nativeStart: () => ipcRenderer.invoke('native:start'),
+  nativeStatus: () => ipcRenderer.invoke('native:status'),
+  nativeCachedList: () => ipcRenderer.invoke('native:cachedList'),
+  nativePickFolder: () => ipcRenderer.invoke('native:pickFolder'),
+  nativeJson: (msg) => ipcRenderer.send('native:json', msg),
+  nativeAudio: (buf) => ipcRenderer.send('native:audio', buf),
+  onNativeJson: (cb) => ipcRenderer.on('native:json', (_e, m) => cb(m)),
+  onNativeAudio: (cb) => ipcRenderer.on('native:audio', (_e, b) => cb(b)),
+  openPluginFolder: () => ipcRenderer.invoke('plugins:openFolder'),
+  saveFile: (opts) => ipcRenderer.invoke('file:save', opts),
+  openFile: (opts) => ipcRenderer.invoke('file:open', opts),
+  vaultStatus: () => ipcRenderer.invoke('vault:status'),
+  vaultSend: (req) => ipcRenderer.invoke('vault:send', req),
+  vaultRead: (id) => ipcRenderer.invoke('vault:read', id),
+  vaultOpen: () => ipcRenderer.invoke('vault:open'),
+  vaultReveal: () => ipcRenderer.invoke('vault:reveal'),
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
+  discordLogin: (opts) => ipcRenderer.invoke('discord:login', opts),
+  // auto-update (Windows installed app)
+  onUpdate: (cb) => ipcRenderer.on('update:event', (_e, m) => cb(m)),
+  updateInstall: () => ipcRenderer.invoke('update:install'),
+  updateCheck: () => ipcRenderer.invoke('update:check'),
+});

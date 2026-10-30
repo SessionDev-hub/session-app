@@ -1,0 +1,87 @@
+=================================================================
+ Session - Auto-updates for your testers (GitHub Releases)
+=================================================================
+
+What this does
+--------------
+Once set up, you publish a new version with ONE command (release.cmd).
+  - Windows: each tester's installed Session updates itself quietly in the
+    background and shows a small "Restart & update" button.
+  - Android: Session shows "an update is available - Download" and the tester
+    taps it to install (Android does not allow fully silent sideload updates).
+
+Testers install ONCE from your GitHub Releases page. After that, updates flow
+automatically. (The portable .exe does NOT self-update - give testers the
+Setup .exe so they get updates.)
+
+
+ONE-TIME SETUP  (about 10 minutes)
+----------------------------------
+1. Make a free GitHub account at https://github.com if you don't have one.
+
+2. Create a new repository for the downloads:
+   - Go to https://github.com/new
+   - Repository name:  Session-Releases
+   - Choose Public (simplest) and click "Create repository".
+   (Public only means the installer files are downloadable - your source code
+    is NOT uploaded. If you want it Private, that works too; testers then need
+    to be added as collaborators.)
+
+3. Put your GitHub username in the app:
+   - Open  updates.config.json  (in this folder) in Notepad.
+   - Change  "owner": "YOUR_GITHUB_USERNAME"  to your real username.
+   - Keep  "repo": "Session-Releases"  (or match whatever you named it).
+   - Save.
+
+4. Make a token so the computer can upload for you (use a CLASSIC token - the
+   fine-grained ones often fail to create releases with a 403 error):
+   - Go to https://github.com/settings/tokens  and open the "Tokens (classic)" tab.
+   - "Generate new token" -> "Generate new token (classic)".
+   - Name it "Session releases". Tick the top "repo" box (that covers everything
+     needed to publish releases).
+   - Generate, then COPY the token. You won't see it again - copy it straight into
+     the command in the next section (never screenshot or paste a token anywhere).
+   - If SessionDev-hub is an ORGANISATION (not your personal account), also click
+     "Configure SSO" next to the new token and authorise it for SessionDev-hub.
+
+5. (Optional, for Android uploads) Install GitHub CLI from
+   https://cli.github.com  - this lets release.cmd upload the APK too.
+
+
+PUBLISHING A NEW VERSION
+------------------------
+1. Raise the version number in  package.json  (the "version" line), e.g.
+   change 0.9.0 to 0.9.1. Always go UP, never repeat a number.
+
+2. Open a Command Prompt in this folder and give it your token for this session:
+       set GH_TOKEN=github_pat_your_token_here
+
+3. (Only if you want an Android update this release) build the APK first:
+       build-android.cmd
+   (needs Android Studio installed once - see README.)
+
+4. Publish:
+       release.cmd
+   It builds Session, uploads it to your Session-Releases repo, and marks it as
+   the latest version. That's it.
+
+Your testers' apps check for updates on launch and every few hours.
+
+
+FIRST TIME - give testers the link
+----------------------------------
+After your first release.cmd, open
+   https://github.com/YOUR_USERNAME/Session-Releases/releases
+and send testers that page. They download Session-Setup once (and the APK on
+their phone). Every future release reaches them automatically.
+
+
+Troubleshooting
+---------------
+- "You need a GitHub token": you didn't run the  set GH_TOKEN=...  line, or
+  opened a new Command Prompt (it forgets it). Run it again.
+- Testers not updating: they must have installed the SETUP version (not
+  portable), and your new version number must be higher than theirs.
+- Android not updating: make sure the APK and latest.json were uploaded to the
+  release (install GitHub CLI so release.cmd can do it), and that you bumped the
+  version in package.json before building.
