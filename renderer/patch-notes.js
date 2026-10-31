@@ -2,6 +2,13 @@
  * "What's new" popup after updating, and the list appears in Settings -> About. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.15.2',
+    date: '2026-10-31',
+    changes: [
+      'Live sessions: fixed joining — the same person can now join from more than one device, and join errors are clearer.',
+    ],
+  },
+  {
     version: '0.15.1',
     date: '2026-10-31',
     changes: [

@@ -62,8 +62,15 @@
       S.toast && S.toast(host ? 'Live session started — invite sent.' : 'Joined the live session.');
       emit();
     });
-    channel.bind('realtime:subscription_error', () => {
-      S.toast && S.toast('Couldn’t join the live session (access).');
+    channel.bind('realtime:subscription_error', (data) => {
+      let detail = '';
+      try {
+        if (data && (data.error || data.status)) detail = (data.status ? '[' + data.status + '] ' : '') + (data.error || '');
+        else if (typeof data === 'string') detail = data;
+        else if (data) detail = JSON.stringify(data).slice(0, 160);
+      } catch (e) {}
+      try { console.error('[collab] subscription_error:', data); } catch (e) {}
+      S.toast && S.toast('Couldn’t join the live session' + (detail ? ' — ' + detail : ' (access).'));
       teardown();
     });
     channel.bind('realtime:member_added', () => refreshMembers());
@@ -154,7 +161,13 @@
   bar.render = () => {
     if (!barEl) return;
     if (!C.active()) { barEl.hidden = true; barEl.innerHTML = ''; return; }
-    const ms = C.members();
+    // one entry per real person (the same person on two devices shares a Discord id)
+    const seen = {}, ms = [];
+    C.members().forEach((m) => {
+      const info = (m && m.user_info) || {};
+      const key = info.id || m.user_id || Math.random();
+      if (seen[key]) return; seen[key] = 1; ms.push(m);
+    });
     const dots = ms.map((m) => {
       const info = (m && m.user_info) || {};
       const name = info.name || 'Artist';
