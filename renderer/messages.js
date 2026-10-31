@@ -77,9 +77,9 @@
         let notInstalled = false;
         try { if (host().vaultLaunch) { const r = await host().vaultLaunch({ hidden: true }); if (r && r.ok === false) notInstalled = /not installed/i.test(r.error || ''); } } catch (e) {}
         if (notInstalled) return offline('The Vault isn’t installed', true);
-        status = await waitForStatus(16000);
+        status = await waitForStatus(9000);
       }
-      if (!status) return offline('Couldn’t reach The Vault', false);
+      if (!status) return offline('Update The Vault to 4.7 for Messages', false);
       verEl.textContent = status.version ? 'Vault ' + status.version : '';
       if (!status.signedIn) {
         main.innerHTML = '';
