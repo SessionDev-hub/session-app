@@ -2,6 +2,13 @@
  * "What's new" popup after updating, and the list appears in Settings -> About. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.15.1',
+    date: '2026-10-31',
+    changes: [
+      'Fixed starting a live session and sending files/mixes — they now send reliably with a caption.',
+    ],
+  },
+  {
     version: '0.15.0',
     date: '2026-10-31',
     changes: [

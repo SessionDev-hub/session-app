@@ -192,11 +192,12 @@
       };
       send.onclick = doSend; input.onkeydown = (e) => { if (e.key === 'Enter') doSend(); };
       // attachments + send current mix
-      const sendBytes = async (name, bytes) => {
+      // The Vault requires a text message, so every file goes with a short caption.
+      const sendBytes = async (name, bytes, caption) => {
         const len = bytes.byteLength || 0;
         if (len > 25 * 1024 * 1024) return S.toast('Files can be up to 25 MB.');
         if (!len) return S.toast('Nothing to send.');
-        await api('POST', '/send', { peer: id, file: { name: name, b64: S.b64(bytes) } });
+        await api('POST', '/send', { peer: id, text: caption || ('📎 ' + name), file: { name: name, b64: S.b64(bytes) } });
         await drawThread(id, false, c);
       };
       const attach = main.querySelector('.msg-attach');
@@ -209,7 +210,7 @@
       mixsend.onclick = async () => {
         if (!S.renderMixdown) return;
         mixsend.disabled = true; const prev = mixsend.innerHTML; mixsend.innerHTML = '…';
-        try { const wav = await S.renderMixdown(S.project); await sendBytes((S.project.name || 'mix') + '.wav', wav); }
+        try { const wav = await S.renderMixdown(S.project); await sendBytes((S.project.name || 'mix') + '.wav', wav, '🎧 ' + (S.project.name || 'Mix')); }
         catch (e) { S.toast(e.message || 'Nothing to send'); }
         mixsend.disabled = false; mixsend.innerHTML = prev;
       };
@@ -219,7 +220,7 @@
         try {
           if (S.native && S.native.syncStates) { try { await S.native.syncStates(); } catch (e) {} }
           const bytes = new TextEncoder().encode(JSON.stringify(S.packProject()));
-          await sendBytes((S.project.name || 'session') + '.pstudio', bytes);
+          await sendBytes((S.project.name || 'session') + '.pstudio', bytes, '📄 ' + (S.project.name || 'Session'));
           S.toast('Session sent — they can Open it in Session.');
         } catch (e) { S.toast(e.message || 'Could not send the session'); }
         sessend.disabled = false; sessend.innerHTML = prev;
@@ -229,14 +230,22 @@
       if (live) live.onclick = async () => {
         if (!S.collab || !S.collab.available()) return S.toast('Live collab isn’t available in this build.');
         live.disabled = true; const prev = live.innerHTML; live.innerHTML = '…';
+        let hosting = false;
         try {
           if (S.native && S.native.syncStates) { try { await S.native.syncStates(); } catch (e) {} }
           const bytes = new TextEncoder().encode(JSON.stringify(S.packProject()));
-          await sendBytes((S.project.name || 'session') + '.pstudio', bytes);
+          if (!bytes.byteLength) throw new Error('Nothing to send yet.');
+          if (bytes.byteLength > 25 * 1024 * 1024) throw new Error('This session is too big to send (25 MB max).');
           const rid = await S.collab.startHosting();
-          await api('POST', '/send', { peer: id, text: '🎚️ Live session started — open the session above, then tap Join. [[live:' + rid + ']]' });
+          hosting = true;
+          // one message carries both the project and the join invite (Vault needs the text)
+          const invite = '🎚️ Live session — open this session, then tap Join. [[live:' + rid + ']]';
+          await api('POST', '/send', { peer: id, text: invite, file: { name: (S.project.name || 'session') + '.pstudio', b64: S.b64(bytes) } });
           await drawThread(id, false, c);
-        } catch (e) { S.toast(e.message || 'Could not start a live session'); }
+        } catch (e) {
+          if (hosting) { try { S.collab.leave(); } catch (_) {} }
+          S.toast(e.message || 'Could not start a live session');
+        }
         live.disabled = false; live.innerHTML = prev;
       };
       // joining a live session from an invite
