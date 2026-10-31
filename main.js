@@ -127,6 +127,7 @@ function createWindow() {
 
 ipcMain.handle('update:install', () => updates.quitAndInstall());
 ipcMain.handle('update:check', () => updates.checkNow());
+ipcMain.handle('update:setAuto', (_e, on) => updates.setAuto(on));
 ipcMain.handle('open-external', (_e, url) => {
   if (typeof url === 'string' && /^https?:\/\//i.test(url)) shell.openExternal(url);
 });
@@ -264,6 +265,8 @@ ipcMain.handle('vault:open', (e) =>
   })
 );
 ipcMain.handle('vault:reveal', (e) => vaultCall(e, async () => (shell.openPath(vault.vaultPaths().files), {})));
+ipcMain.handle('vault:bridge', (e, req) => vaultCall(e, async () => ({ data: await vault.bridge((req && req.method) || 'GET', req && req.path, req && req.body) })));
+ipcMain.handle('vault:bridgeInfo', (e) => vaultCall(e, async () => ({ info: vault.bridgeInfo() })));
 
 ipcMain.handle('file:save', async (_e, { data, defaultName, filters, binary }) => {
   const res = await dialog.showSaveDialog({ defaultPath: defaultName, filters });

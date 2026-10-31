@@ -2,6 +2,21 @@
  * "What's new" popup after updating, and the list appears in Settings -> About. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.14.0',
+    date: '2026-10-30',
+    changes: [
+      'Messages: end-to-end encrypted chat with other artists, right inside Session — the Vault button now opens Messages (powered by The Vault, needs The Vault 4.7+).',
+    ],
+  },
+  {
+    version: '0.13.2',
+    date: '2026-10-30',
+    changes: [
+      'Settings now uses a gear icon.',
+      'Automatic updates switch in Settings → About — turn background updates on or off.',
+    ],
+  },
+  {
     version: '0.13.1',
     date: '2026-10-30',
     changes: [

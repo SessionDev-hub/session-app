@@ -249,4 +249,47 @@ async function readSong(songId, home) {
   return { title: song.title, filename: song.filename, bytes: new Uint8Array(fs.readFileSync(file)) };
 }
 
-module.exports = { status, addSong, addVersion, readSong, vaultExe, vaultPaths, safeName, uniquePath, now, stamp, VaultBusyError };
+/* ---- Connect bridge: talk to The Vault's local messaging server (4.7+) ----
+ * The Vault, while running, writes SongVault/connect_bridge.json = { port, token, version }.
+ * Session calls http://127.0.0.1:<port> with the token; The Vault does all the crypto. */
+const http = require('http');
+
+function bridgeInfo(home = os.homedir()) {
+  try {
+    const j = JSON.parse(fs.readFileSync(path.join(home, 'SongVault', 'connect_bridge.json'), 'utf8'));
+    if (j && j.port && j.token) return j;
+  } catch (e) {}
+  return null;
+}
+
+function bridge(method, pathName, body, home = os.homedir()) {
+  const info = bridgeInfo(home);
+  if (!info) { const e = new Error('The Vault isn’t running or is older than 4.7.'); e.code = 'BRIDGE_OFFLINE'; throw e; }
+  const payload = body != null ? Buffer.from(JSON.stringify(body)) : null;
+  return new Promise((resolve, reject) => {
+    const req = http.request(
+      {
+        host: '127.0.0.1', port: info.port, method: method || 'GET', path: pathName, timeout: 30000,
+        headers: Object.assign(
+          { Authorization: 'Bearer ' + info.token, Accept: 'application/json' },
+          payload ? { 'Content-Type': 'application/json', 'Content-Length': payload.length } : {}
+        ),
+      },
+      (res) => {
+        let d = '';
+        res.on('data', (c) => (d += c));
+        res.on('end', () => {
+          let j = null; try { j = d ? JSON.parse(d) : {}; } catch (e) {}
+          if (res.statusCode >= 200 && res.statusCode < 300) resolve(j);
+          else reject(new Error((j && j.error) || 'The Vault bridge returned ' + res.statusCode));
+        });
+      }
+    );
+    req.on('error', () => reject(Object.assign(new Error('The Vault isn’t running.'), { code: 'BRIDGE_OFFLINE' })));
+    req.on('timeout', () => req.destroy(new Error('The Vault bridge timed out.')));
+    if (payload) req.write(payload);
+    req.end();
+  });
+}
+
+module.exports = { status, addSong, addVersion, readSong, vaultExe, vaultPaths, safeName, uniquePath, now, stamp, VaultBusyError, bridge, bridgeInfo };

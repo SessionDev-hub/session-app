@@ -96,6 +96,12 @@
       btn.title = 'Settings: background, recording, and more';
     }
     G.applyAudio();
+    // tell the updater whether the user wants automatic updates
+    try {
+      const v = localStorage.getItem('ps.autoUpdate');
+      const on = v === null ? true : v === '1';
+      if (window.studioHost && window.studioHost.updateSetAuto) window.studioHost.updateSetAuto(on);
+    } catch (e) {}
   };
 
   G.open = (tab = 'appearance') => {
@@ -103,7 +109,7 @@
     dlg.className = 'modal settings-dlg';
     dlg.innerHTML =
       '<div class="set-head"><span class="set-ic">' +
-      S.ui.icon('sliders', 18) +
+      S.ui.icon('gear', 18) +
       '</span><h3>Settings</h3><span class="set-ver">v' +
       (window.__SESSION_VERSION__ || '0.10.0') +
       '</span><div class="pw-sp"></div><button class="pw-ib set-x" title="Close">' +
@@ -365,7 +371,22 @@
       if (host.updateCheck) {
         const status = document.createElement('p');
         status.className = 'hint';
-        status.textContent = 'Session updates itself automatically. You can also check right now.';
+        // Automatic-update switch
+        const auOn = (() => { try { const v = localStorage.getItem('ps.autoUpdate'); return v === null ? true : v === '1'; } catch (e) { return true; } })();
+        status.textContent = auOn ? 'Session updates itself automatically. You can also check right now.' : 'Automatic updates are off — use “Check for updates” when you want one.';
+        const autoRow = document.createElement('label');
+        autoRow.className = 'param su-auto';
+        autoRow.innerHTML = '<span class="su-auto-l">Automatic updates</span>';
+        const toggle = document.createElement('input');
+        toggle.type = 'checkbox';
+        toggle.className = 'su-switch';
+        toggle.checked = auOn;
+        toggle.onchange = () => {
+          try { localStorage.setItem('ps.autoUpdate', toggle.checked ? '1' : '0'); } catch (e) {}
+          if (host.updateSetAuto) try { host.updateSetAuto(toggle.checked); } catch (e) {}
+          status.textContent = toggle.checked ? 'Session updates itself automatically. You can also check right now.' : 'Automatic updates are off — use “Check for updates” when you want one.';
+        };
+        autoRow.appendChild(toggle);
         const row = document.createElement('div');
         row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-top:8px';
         const btn = document.createElement('button');
@@ -383,7 +404,7 @@
           setTimeout(() => (btn.disabled = false), 10000); // safety re-enable if nothing comes back
         };
         row.append(btn, restart);
-        up.append(status, row);
+        up.append(status, autoRow, row);
         upEls = { status, restart, btn };
         wireUpdates();
       } else {
