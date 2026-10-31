@@ -2,6 +2,13 @@
  * "What's new" popup after updating, and the list appears in Settings -> About. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.14.1',
+    date: '2026-10-30',
+    changes: [
+      'Bigger buttons in the Messages header.',
+    ],
+  },
+  {
     version: '0.14.0',
     date: '2026-10-30',
     changes: [
