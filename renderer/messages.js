@@ -153,7 +153,8 @@
         '<div class="msg-log"></div>' +
         '<div class="msg-compose">' +
         '<button class="pw-ib msg-attach" title="Send a file (up to 25 MB)">' + S.ui.icon('import', 16) + '</button>' +
-        '<button class="pw-ib msg-mixsend" title="Send the current mix">' + S.ui.icon('note', 16) + '</button>' +
+        '<button class="pw-ib msg-mixsend" title="Send the current mix (WAV)">' + S.ui.icon('note', 16) + '</button>' +
+        '<button class="pw-ib msg-sessend" title="Send this whole session — they can open it in Session">' + S.ui.icon('file', 16) + '</button>' +
         '<input class="msg-in" placeholder="Message…" maxlength="8000"><button class="btn primary msg-send">Send</button></div>';
       const log = main.querySelector('.msg-log');
       (data.messages || []).forEach((m) => {
@@ -161,7 +162,11 @@
         const b = el('div', 'msg-b ' + (mine ? 'me' : 'them'));
         let inner = '';
         if (m.text) inner += '<div class="msg-t">' + esc(m.text) + '</div>';
-        if (m.file) inner += '<div class="msg-file">' + S.ui.icon('import', 12) + ' ' + esc(m.file.name) + '</div>';
+        if (m.file) {
+          const isProj = /\.pstudio$/i.test(m.file.name || '');
+          inner += '<div class="msg-file">' + S.ui.icon(isProj ? 'file' : 'import', 12) + ' ' + esc(m.file.name) +
+            '<button class="msg-fbtn" data-mid="' + m.id + '" data-name="' + esc(m.file.name) + '" data-proj="' + (isProj ? '1' : '0') + '">' + (isProj ? 'Open in Session' : 'Save') + '</button></div>';
+        }
         if (m.song) inner += '<div class="msg-file">' + S.ui.icon('note', 12) + ' ' + esc(m.song.title || 'Song') + '</div>';
         if (m.verified === false) inner += '<div class="msg-warn">unverified</div>';
         inner += '<span class="msg-time">' + timeStr(m.at) + '</span>';
@@ -200,6 +205,35 @@
         catch (e) { S.toast(e.message || 'Nothing to send'); }
         mixsend.disabled = false; mixsend.innerHTML = prev;
       };
+      const sessend = main.querySelector('.msg-sessend');
+      sessend.onclick = async () => {
+        sessend.disabled = true; const prev = sessend.innerHTML; sessend.innerHTML = '…';
+        try {
+          if (S.native && S.native.syncStates) { try { await S.native.syncStates(); } catch (e) {} }
+          const bytes = new TextEncoder().encode(JSON.stringify(S.packProject()));
+          await sendBytes((S.project.name || 'session') + '.pstudio', bytes);
+          S.toast('Session sent — they can Open it in Session.');
+        } catch (e) { S.toast(e.message || 'Could not send the session'); }
+        sessend.disabled = false; sessend.innerHTML = prev;
+      };
+      // receiving: wire Open / Save buttons on file messages
+      log.querySelectorAll('.msg-fbtn').forEach((btn) => {
+        btn.onclick = async () => {
+          btn.disabled = true; const was = btn.textContent; btn.textContent = '…';
+          try {
+            const r = await api('POST', '/file', { peer: id, id: Number(btn.dataset.mid) });
+            const bytes = S.unb64(r.b64);
+            if (btn.dataset.proj === '1') {
+              if (!confirm('Open this session? Your current unsaved work will be replaced.')) { btn.disabled = false; btn.textContent = was; return; }
+              await S.openProjectText(new TextDecoder().decode(bytes));
+              dlg.close();
+              return;
+            }
+            if (host().saveFile) await host().saveFile({ data: bytes, defaultName: btn.dataset.name, binary: true });
+          } catch (e) { S.toast(/not found|404|update/i.test(e.message) ? 'Opening files needs the newest Vault.' : (e.message || 'Could not get that file')); }
+          btn.disabled = false; btn.textContent = was;
+        };
+      });
       if (atBottom) log.scrollTop = log.scrollHeight;
       input.focus();
     }

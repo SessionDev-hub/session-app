@@ -13,6 +13,9 @@
   S.recordMode = (() => { try { return localStorage.getItem(RECKEY) || 'replace'; } catch (e) { return 'replace'; } })();
   S.setRecordMode = (m) => { S.recordMode = m === 'layer' ? 'layer' : 'replace'; try { localStorage.setItem(RECKEY, S.recordMode); } catch (e) {} };
 
+  // Load a .pstudio project from its text (used by Open, and by Messages' "Open in Session").
+  S.openProjectText = (text) => loadEnvelope(text);
+
   /** Remove the [s,e] span from other clips on a track (trim/split/remove), leaving the new take clean. */
   function clearSpan(track, s, e, exceptId) {
     const EPS = 1e-3;

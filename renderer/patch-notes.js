@@ -2,6 +2,14 @@
  * "What's new" popup after updating, and the list appears in Settings -> About. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.14.3',
+    date: '2026-10-31',
+    changes: [
+      'Send a whole session in a message — the other person can Open it in Session and keep building.',
+      'Received files and mixes now have Open / Save buttons in the chat.',
+    ],
+  },
+  {
     version: '0.14.2',
     date: '2026-10-31',
     changes: [

@@ -769,7 +769,9 @@ main.mdock-right.mv-mixer #mix-panel { width: auto; flex: 1; }
 .msg-b.them { align-self: flex-start; background: #23252f; color: #eceef3; border-bottom-left-radius: 5px; }
 .msg-b.me { align-self: flex-end; background: linear-gradient(180deg,#8b7bff,#6f5fe0); color: #fff; border-bottom-right-radius: 5px; }
 .msg-t { white-space: pre-wrap; word-break: break-word; }
-.msg-file { font-size: 12px; opacity: .9; display: flex; align-items: center; gap: 5px; margin-top: 3px; }
+.msg-file { font-size: 12px; opacity: .95; display: flex; align-items: center; gap: 5px; margin-top: 3px; flex-wrap: wrap; }
+.msg-fbtn { margin-left: 6px; height: 24px; padding: 0 10px; border-radius: 7px; border: 1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.12); color: #fff; font: 700 11px var(--font); cursor: pointer; }
+.msg-fbtn:hover { background: rgba(255,255,255,.22); }
 .msg-warn { font-size: 10.5px; color: #fbbf24; margin-top: 2px; }
 .msg-time { display: block; text-align: right; font-size: 10px; opacity: .6; margin-top: 3px; }
 .msg-compose { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--line); }
