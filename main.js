@@ -267,6 +267,17 @@ ipcMain.handle('vault:open', (e) =>
 ipcMain.handle('vault:reveal', (e) => vaultCall(e, async () => (shell.openPath(vault.vaultPaths().files), {})));
 ipcMain.handle('vault:bridge', (e, req) => vaultCall(e, async () => ({ data: await vault.bridge((req && req.method) || 'GET', req && req.path, req && req.body) })));
 ipcMain.handle('vault:bridgeInfo', (e) => vaultCall(e, async () => ({ info: vault.bridgeInfo() })));
+ipcMain.handle('vault:launch', (e, opts) =>
+  vaultCall(e, async () => {
+    const exe = vault.vaultExe();
+    if (!exe) { const err = new Error('The Vault app is not installed on this computer.'); err.notInstalled = true; throw err; }
+    const { spawn } = require('child_process');
+    const args = opts && opts.hidden ? ['--hidden'] : [];
+    const child = spawn(exe, args, { detached: true, stdio: 'ignore' });
+    child.unref();
+    return {};
+  })
+);
 
 ipcMain.handle('file:save', async (_e, { data, defaultName, filters, binary }) => {
   const res = await dialog.showSaveDialog({ defaultPath: defaultName, filters });

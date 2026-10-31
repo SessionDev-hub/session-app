@@ -2,6 +2,14 @@
  * "What's new" popup after updating, and the list appears in Settings -> About. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.14.2',
+    date: '2026-10-31',
+    changes: [
+      'Messages now opens The Vault in the background for you — no need to launch it yourself.',
+      'Send files (up to 25 MB) or your current mix right inside a chat.',
+    ],
+  },
+  {
     version: '0.14.1',
     date: '2026-10-30',
     changes: [

@@ -64,15 +64,22 @@
       main.appendChild(box);
     }
 
+    const spinner = (t) => { main.innerHTML = '<div class="msg-empty"><div class="bg-spin"></div><h4>' + esc(t) + '</h4></div>'; };
+    const tryStatus = async () => { try { return await api('GET', '/status'); } catch (e) { return null; } };
+    async function waitForStatus(ms) { const end = Date.now() + ms; while (Date.now() < end && !closed) { const s = await tryStatus(); if (s) return s; await new Promise((r) => setTimeout(r, 1500)); } return null; }
+
     async function boot() {
-      main.innerHTML = '<div class="msg-empty"><div class="bg-spin"></div><h4>Connecting to The Vault…</h4></div>';
-      let status;
-      try { status = await api('GET', '/status'); }
-      catch (e) {
-        if (host().vaultBridgeInfo) { const r = await host().vaultBridgeInfo(); /* info may still be null */ }
-        // distinguish not-installed vs not-running isn't exact here; offer to open, with Get fallback
-        return offline('The Vault isn’t running', false);
+      spinner('Connecting to The Vault…');
+      let status = await tryStatus();
+      if (!status) {
+        // not running — start The Vault hidden in the background, then wait for it
+        spinner('Starting The Vault…');
+        let notInstalled = false;
+        try { if (host().vaultLaunch) { const r = await host().vaultLaunch({ hidden: true }); if (r && r.ok === false) notInstalled = /not installed/i.test(r.error || ''); } } catch (e) {}
+        if (notInstalled) return offline('The Vault isn’t installed', true);
+        status = await waitForStatus(16000);
       }
+      if (!status) return offline('Couldn’t reach The Vault', false);
       verEl.textContent = status.version ? 'Vault ' + status.version : '';
       if (!status.signedIn) {
         main.innerHTML = '';
@@ -144,7 +151,10 @@
         '<div class="msg-head"><span class="msg-head-n">' + esc(name) + '</span>' +
         (data.safety ? '<span class="msg-safety" title="Safety code — compare with your contact to be sure">#' + esc(data.safety) + '</span>' : '') + '</div>' +
         '<div class="msg-log"></div>' +
-        '<div class="msg-compose"><input class="msg-in" placeholder="Message…" maxlength="8000"><button class="btn primary msg-send">Send</button></div>';
+        '<div class="msg-compose">' +
+        '<button class="pw-ib msg-attach" title="Send a file (up to 25 MB)">' + S.ui.icon('import', 16) + '</button>' +
+        '<button class="pw-ib msg-mixsend" title="Send the current mix">' + S.ui.icon('note', 16) + '</button>' +
+        '<input class="msg-in" placeholder="Message…" maxlength="8000"><button class="btn primary msg-send">Send</button></div>';
       const log = main.querySelector('.msg-log');
       (data.messages || []).forEach((m) => {
         const mine = data.me && m.from === data.me;
@@ -168,6 +178,28 @@
         send.disabled = false; input.focus();
       };
       send.onclick = doSend; input.onkeydown = (e) => { if (e.key === 'Enter') doSend(); };
+      // attachments + send current mix
+      const sendBytes = async (name, bytes) => {
+        const len = bytes.byteLength || 0;
+        if (len > 25 * 1024 * 1024) return S.toast('Files can be up to 25 MB.');
+        if (!len) return S.toast('Nothing to send.');
+        await api('POST', '/send', { peer: id, file: { name: name, b64: S.b64(bytes) } });
+        await drawThread(id, false, c);
+      };
+      const attach = main.querySelector('.msg-attach');
+      attach.onclick = () => {
+        const i = document.createElement('input'); i.type = 'file';
+        i.onchange = async () => { const f = i.files[0]; if (!f) return; attach.disabled = true; try { await sendBytes(f.name, await f.arrayBuffer()); } catch (e) { S.toast(e.message || 'Could not send that file'); } attach.disabled = false; };
+        i.click();
+      };
+      const mixsend = main.querySelector('.msg-mixsend');
+      mixsend.onclick = async () => {
+        if (!S.renderMixdown) return;
+        mixsend.disabled = true; const prev = mixsend.innerHTML; mixsend.innerHTML = '…';
+        try { const wav = await S.renderMixdown(S.project); await sendBytes((S.project.name || 'mix') + '.wav', wav); }
+        catch (e) { S.toast(e.message || 'Nothing to send'); }
+        mixsend.disabled = false; mixsend.innerHTML = prev;
+      };
       if (atBottom) log.scrollTop = log.scrollHeight;
       input.focus();
     }

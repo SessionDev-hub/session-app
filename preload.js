@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('studioHost', {
   vaultReveal: () => ipcRenderer.invoke('vault:reveal'),
   vaultBridge: (method, path, body) => ipcRenderer.invoke('vault:bridge', { method, path, body }),
   vaultBridgeInfo: () => ipcRenderer.invoke('vault:bridgeInfo'),
+  vaultLaunch: (opts) => ipcRenderer.invoke('vault:launch', opts),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
   discordLogin: (opts) => ipcRenderer.invoke('discord:login', opts),
   // auto-update (Windows installed app)
