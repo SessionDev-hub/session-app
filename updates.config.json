@@ -1,0 +1,15 @@
+{
+  "_comment": "Where Session checks for updates. Put your GitHub username in owner and keep (or rename) repo. Create that repo on GitHub, then run release.cmd to publish a version.",
+  "github": {
+    "owner": "SessionDev-hub",
+    "repo": "Session-Releases"
+  },
+  "discord": {
+    "clientId": "1565640688799060050",
+    "invite": "https://discord.gg/HbkNrPAAm",
+    "redirect": "http://localhost/session-oauth",
+    "guildId": "1565508129486282864",
+    "betaRoleId": "1565525235388649623",
+    "gate": true
+  }
+}

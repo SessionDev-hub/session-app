@@ -1,0 +1,53 @@
+name: Build & Release
+# Builds Session for Windows AND macOS and publishes both to the Session-Releases repo.
+# Trigger it by pushing a tag like v0.12.9, or run it by hand from the Actions tab.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer tag cancels an older still-running build so nothing piles up.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 30          # a hung build dies here instead of running for hours
+    env:
+      CI: 'true'
+      npm_config_yes: 'true'     # never let npx stop to ask "Ok to proceed?"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Build & publish (Windows)
+        run: node scripts/build-release.js --publish
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+  mac:
+    runs-on: macos-latest        # independent of Windows, so one hang can't block the other
+    timeout-minutes: 30
+    env:
+      CI: 'true'
+      npm_config_yes: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Build & publish (macOS, unsigned)
+        run: node scripts/build-release.js --publish
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'

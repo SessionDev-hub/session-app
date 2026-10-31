@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.session.studio" android:versionCode="1201" android:versionName="0.12.1">
+  <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="34" />
+  <uses-permission android:name="android.permission.INTERNET" />
+  <uses-permission android:name="android.permission.RECORD_AUDIO" />
+  <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+  <uses-feature android:name="android.hardware.microphone" android:required="false" />
+  <application android:label="@string/app_name" android:icon="@mipmap/ic_launcher"
+      android:theme="@style/AppTheme" android:hardwareAccelerated="true" android:allowBackup="true">
+    <activity android:name=".MainActivity" android:exported="true"
+        android:screenOrientation="sensorLandscape"
+        android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode"
+        android:windowSoftInputMode="adjustResize" android:launchMode="singleTask">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+    </activity>
+    <provider android:name=".Files" android:authorities="com.session.studio.files"
+        android:exported="false" android:grantUriPermissions="true" />
+  </application>
+</manifest>

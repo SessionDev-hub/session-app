@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <title>Session</title>
+  <link rel="icon" href="../assets/icon.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- load screen: shown until the audio engine and plugins are ready -->
+  <div id="splash">
+    <div class="sp-art"></div>
+    <div class="sp-load" id="sp-load">
+      <div class="sp-bar"><i id="sp-progress"></i></div>
+      <div id="sp-status" class="sp-status">Starting…</div>
+    </div>
+  </div>
+  <script>
+    // keep the progress bar just under the tagline of the artwork, whatever the window size
+    (function () {
+      const place = () => {
+        const W = innerWidth, H = innerHeight, k = Math.max(W / 1536, H / 1024);
+        const el = document.getElementById('sp-load');
+        if (el) el.style.top = (H - 1024 * k) / 2 + 625 * k + 'px';
+      };
+      place();
+      addEventListener('resize', place);
+    })();
+  </script>
+
+  <header id="top">
+    <!-- row 1: brand, session, files, input, app settings -->
+    <div class="bar">
+      <div class="brand" title="Session">
+        <img class="brand-mark" src="../assets/mark.svg" alt="" />
+        <span class="brand-name">Session</span>
+      </div>
+      <input id="proj-name" class="txt name" spellcheck="false" title="Session name" />
+
+      <div class="pill">
+        <button id="btn-new" class="btn ghost" data-icon="file" title="New session">New</button>
+        <button id="btn-open" class="btn ghost" data-icon="open" title="Open a session">Open</button>
+        <button id="btn-save" class="btn ghost" data-icon="save" title="Save (Ctrl+S)">Save</button>
+        <button id="btn-share" class="btn ghost" data-icon="lock" title="Save an encrypted copy protected by a passphrase">Share</button>
+      </div>
+      <div class="pill">
+        <button id="btn-import" class="btn ghost" data-icon="import" title="Import audio files (or drag them onto the window)">Import</button>
+        <button id="btn-sounds" class="btn ghost" data-icon="music" title="Your sounds: keep your own samples and drop them onto the timeline">Sounds</button>
+        <button id="btn-export" class="btn primary" data-icon="export" title="Export the song (WAV or MP3)">Export WAV</button>
+        <button id="btn-vault" class="btn ghost" data-icon="vault" title="The Vault: send this song to your friend's song library, or bring a Vault song in">Vault</button>
+        <button id="btn-match" class="btn ghost" data-icon="wand" title="Match (AI mix): shape your vocal toward a reference or a vibe">Match</button>
+      </div>
+
+      <div class="spacer"></div>
+
+      <div class="pill" title="Musical key of the song. Auto-tune pulls notes into this key.">
+        <span class="pill-ic" data-icon="note"></span>
+        <select id="key-tonic" class="sel sm"></select>
+        <select id="key-mode" class="sel sm"><option>major</option><option>minor</option></select>
+        <button id="btn-key" class="btn ghost" title="Detect the key from the selected clip, or from the whole song if none is selected">Detect</button>
+        <label class="lbl chk" title="Re-detect the key automatically after each recording or import"><input id="key-auto" type="checkbox" /> auto</label>
+        <button id="btn-autotune" class="btn ghost icon-only" data-icon="wand" title="Auto-tune: pitch-correct the selected clip"></button>
+      </div>
+
+      <div class="pill">
+        <button id="btn-vst3" class="btn ghost icon-only" data-icon="cube" title="VST3 plugins: find and use the effects installed on this computer"><span>VST3</span></button>
+        <button id="btn-plugin-import" class="btn ghost icon-only" data-icon="plug" title="Import plugin: add a .js effect and use it right away"></button>
+        <button id="btn-plugins" class="btn ghost icon-only" data-icon="folder" title="Open your plugin folder"></button>
+        <button id="btn-bg" class="btn ghost icon-only" data-icon="sliders" title="Settings: background, recording, and more"></button>
+      </div>
+    </div>
+
+    <!-- row 2: transport, tempo, grid, tools, edit, key, mix -->
+    <div class="bar">
+      <div class="pill transport">
+        <button id="btn-rec" class="tbtn rec" data-icon="record" data-size="18" title="Record (R)"></button>
+        <button id="btn-play" class="tbtn play" data-icon="play" data-size="18" title="Play / Stop (Space)"></button>
+        <button id="btn-stop" class="tbtn" data-icon="stop" data-size="16" title="Stop (returns to start)"></button>
+        <div class="clock">
+          <div id="time" class="time">0:00.000</div>
+          <div id="bbt" class="bbt" title="Bar . beat . tick">1.1.00</div>
+        </div>
+      </div>
+
+      <div class="pill tempo" title="Song tempo and time signature (used by the bars & beats grid)">
+        <label class="lbl" for="bpm">BPM</label>
+        <input id="bpm" class="txt num bpm" type="number" min="20" max="400" step="0.5" value="120" />
+        <button id="btn-tap" class="btn ghost sm" title="Tap this button in time with the music to set the BPM">Tap</button>
+        <select id="sig" class="sel sm" title="Beats per bar"></select>
+      </div>
+
+      <div class="pill grid-pill" title="Snap to grid (G). Hold Alt while dragging to move freely.">
+        <button id="btn-snap" class="btn ghost toggle" data-icon="magnet" title="Snap to grid (G)">Snap</button>
+        <select id="grid-mode" class="sel sm"><option value="bars">Bars</option><option value="time">Seconds</option></select>
+        <select id="grid-div" class="sel sm"></select>
+      </div>
+
+      <div class="pill tools" role="toolbar" title="Tools">
+        <button class="tool" data-tool="select" data-icon="pointer" title="Select / move / trim (V)"></button>
+        <button class="tool" data-tool="slice" data-icon="scissors" title="Slice: click a clip to cut it, Shift+click cuts every track (C)"></button>
+        <button class="tool" data-tool="erase" data-icon="eraser" title="Erase: click or drag over clips to delete them (E)"></button>
+        <button class="tool" data-tool="mute" data-icon="mute" title="Mute: click clips to mute / unmute them (M)"></button>
+        <button class="tool" data-tool="loop" data-icon="repeat" title="Loop: drag across the timeline to set a loop region; playback repeats it (L to toggle)"></button>
+      </div>
+
+      <div class="pill">
+        <button id="btn-undo" class="btn ghost icon-only" data-icon="undo" title="Undo (Ctrl+Z)"></button>
+        <button id="btn-redo" class="btn ghost icon-only" data-icon="redo" title="Redo (Ctrl+Shift+Z)"></button>
+        <span class="div"></span>
+        <button id="btn-split" class="btn ghost icon-only" data-icon="scissors" title="Split the selected clips at the playhead (S)"></button>
+        <button id="btn-del" class="btn ghost icon-only" data-icon="trash" title="Delete selected clips (Delete)"></button>
+        <span class="div"></span>
+        <button id="btn-zoom-out" class="btn ghost icon-only" data-icon="zoomOut" title="Zoom out (Ctrl+wheel)"></button>
+        <button id="btn-zoom-in" class="btn ghost icon-only" data-icon="zoomIn" title="Zoom in (Ctrl+wheel)"></button>
+      </div>
+
+      <div class="spacer"></div>
+
+      <div class="pill input-pill" title="Recording input">
+        <span class="pill-ic" data-icon="mic"></span>
+        <select id="sel-input" class="sel"><option value="">Default input</option></select>
+        <div class="inmeter" title="Input level"><i id="in-meter"></i></div>
+        <button id="btn-cal" class="btn ghost sm" data-icon="timer" title="Fix latency: measure your real round-trip delay so recorded takes line up with the beat"><span id="lat-readout"></span></button>
+        <input id="lat" class="txt num" type="number" value="0" step="5" title="Nudge (ms): manual fine-tune added on top of the measured delay" placeholder="ms" />
+      </div>
+
+    </div>
+  </header>
+
+  <main>
+    <section id="timeline">
+      <div id="tl-headers"></div>
+      <div id="tl-scroll"><canvas id="tl-canvas"></canvas><div id="tl-spacer"></div></div>
+    </section>
+    <div id="mix-split" title="Drag to resize the mixer"></div>
+    <section id="mix-panel">
+      <div class="mix-head">
+        <span class="mix-title" data-icon="mixer">Mixer</span>
+        <span class="lbl mix-hint">Effects belong to the track: every clip on it plays through them. Drag an effect to reorder it or onto another track.</span>
+        <div class="mix-actions">
+        <button id="btn-balance" class="btn ghost" data-icon="balance" title="Set the faders so every track sits at a sensible level">Balance</button>
+        <button id="btn-master" class="btn accent" data-icon="sliders" title="Auto master: EQ, compression, stereo width and a limiter, set to a loudness target">Master…</button>
+      </div>
+        <button id="btn-mix-toggle" class="btn ghost sm" title="Show / hide the mixer (F9)">Hide</button>
+      </div>
+      <section id="mixer"></section>
+    </section>
+  </main>
+
+  <input id="file-import" type="file" accept="audio/*" multiple hidden />
+
+  <script src="host-web.js"></script>
+  <script src="core.js"></script>
+  <script src="ui.js"></script>
+  <script src="dsp.js"></script>
+  <script src="project.js"></script>
+  <script src="grid.js"></script>
+  <script src="engine.js"></script>
+  <script src="native.js"></script>
+  <script src="history.js"></script>
+  <script src="editor.js"></script>
+  <script src="clips.js"></script>
+  <script src="timeline.js"></script>
+  <script src="tools.js"></script>
+  <script src="mixer.js"></script>
+  <script src="background.js"></script>
+  <script src="settings.js"></script>
+  <script src="workspace.js"></script>
+  <script src="match.js"></script>
+  <script src="sounds.js"></script>
+  <script src="sessions.js"></script>
+  <script src="patch-notes.js"></script>
+  <script src="vault.js"></script>
+  <script src="lame.min.js"></script>
+  <script src="update-target.js"></script>
+  <script src="updates.js"></script>
+  <script src="gate.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

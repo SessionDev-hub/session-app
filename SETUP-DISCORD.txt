@@ -1,0 +1,49 @@
+=================================================================
+ Session - Sign in with Discord (one-time setup)
+=================================================================
+
+What this gives you
+-------------------
+- A "Sign in with Discord" button in Settings -> Account. It shows the person's
+  Discord name + avatar inside Session.
+- An "Open the community" button that opens your Discord server so artists connect.
+
+No server or password handling is needed - Session uses Discord's own login, and
+only asks for the person's basic identity (name + avatar). Nothing is stored online
+by you; the profile is kept on their own computer.
+
+Community already works with no setup (it just opens your invite link). The steps
+below are only needed for the "Sign in with Discord" button.
+
+
+ONE-TIME SETUP (about 5 minutes)
+--------------------------------
+1. Go to https://discord.com/developers/applications and log in.
+2. Click "New Application", name it "Session", and Create.
+3. On the left, open "OAuth2".
+4. Copy the "Client ID" (a long number). You'll paste it in step 6.
+5. Still on OAuth2, under "Redirects", click "Add Redirect" and paste exactly:
+       http://localhost/session-oauth
+   Then Save Changes at the bottom.
+6. Open  updates.config.json  in your private-studio folder (Notepad). Find the
+   "discord" section and put your Client ID between the quotes:
+       "discord": {
+         "clientId": "PASTE_YOUR_CLIENT_ID_HERE",
+         "invite": "https://discord.gg/HbkNrPAAm",
+         "redirect": "http://localhost/session-oauth"
+       }
+   Save the file.
+7. Publish a new version with release.cmd (as usual). The signed-in build will have
+   working Discord login.
+
+Change the "invite" line any time to point at a different Discord server.
+
+
+Notes
+-----
+- Sign-in runs in Session for Windows. On Android, the Account screen shows the
+  Community button (opens Discord); in-app sign-in is desktop-only for now.
+- Only the "identify" permission is requested (name, avatar, user id). Session does
+  not ask for email, messages, or anything else.
+- If the login window opens but nothing happens after you approve, double-check the
+  redirect in step 5 is EXACTLY http://localhost/session-oauth with no trailing slash.
