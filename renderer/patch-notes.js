@@ -2,7 +2,7 @@
  * "What's new" popup after updating, and the list appears in Settings -> About. */
 window.__PATCH_NOTES__ = [
   {
-    version: '0.13.0',
+    version: '0.13.1',
     date: '2026-10-30',
     changes: [
       'Match is now called AI Mix.',
