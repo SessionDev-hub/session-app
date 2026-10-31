@@ -300,6 +300,25 @@
       slider('Input monitor', 'monVol', prefs.monVol, 'How loud you hear yourself while monitoring or recording. Use headphones to avoid echo.');
       body.appendChild(vol);
 
+      // ---- Recording over existing audio ----
+      const rec = document.createElement('div');
+      rec.className = 'set-pane';
+      rec.innerHTML = '<div class="set-sec-t">Recording</div>';
+      const rrow = document.createElement('div');
+      rrow.className = 'param';
+      rrow.innerHTML = '<label>Over existing audio</label><span class="seg rec-seg"></span><span class="hint">Replace = a new take swaps the old one. Layer = keep both (overdub).</span>';
+      const segBox = rrow.querySelector('.rec-seg');
+      [['replace', 'Replace (retake)'], ['layer', 'Layer']].forEach(([v, label]) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'seg-b' + ((S.recordMode || 'replace') === v ? ' on' : '');
+        b.textContent = label;
+        b.onclick = () => { S.setRecordMode(v); segBox.querySelectorAll('.seg-b').forEach((x) => x.classList.remove('on')); b.classList.add('on'); };
+        segBox.appendChild(b);
+      });
+      rec.appendChild(rrow);
+      body.appendChild(rec);
+
       const box = document.createElement('div');
       box.className = 'set-pane';
       box.innerHTML =

@@ -194,7 +194,7 @@
       });
       items.push({ sep: true });
     }
-    items.push({ label: 'Match (AI mix)…', hint: list.length ? '' : 'build your first preset', action: () => M.open() });
+    items.push({ label: 'AI Mix…', hint: list.length ? '' : 'build your first preset', action: () => M.open() });
     items.push({ sep: true });
     items.push({ label: 'Track colour…', action: () => S.ui.colorMenu(track, x, y) });
     S.clips.menu(x, y, items);
@@ -204,7 +204,7 @@
     const el = (t, c, h) => { const e = document.createElement(t); if (c) e.className = c; if (h != null) e.innerHTML = h; return e; };
     const dlg = el('dialog', 'modal match-dlg');
     dlg.innerHTML =
-      '<div class="set-head"><span class="set-ic">' + S.ui.icon('wand', 18) + '</span><h3>Match</h3><span class="set-ver">AI mix</span><div class="pw-sp"></div><button class="pw-ib mt-x" title="Close">' + S.ui.icon('x', 14) + '</button></div>' +
+      '<div class="set-head"><span class="set-ic">' + S.ui.icon('wand', 18) + '</span><h3>AI Mix</h3><span class="set-ver">beta</span><div class="pw-sp"></div><button class="pw-ib mt-x" title="Close">' + S.ui.icon('x', 14) + '</button></div>' +
       '<div class="mt-body"></div>';
     const body = dlg.querySelector('.mt-body');
     dlg.querySelector('.mt-x').onclick = () => dlg.close();

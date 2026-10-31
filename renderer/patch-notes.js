@@ -2,6 +2,15 @@
  * "What's new" popup after updating, and the list appears in Settings -> About. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.13.0',
+    date: '2026-10-30',
+    changes: [
+      'Match is now called AI Mix.',
+      'Recording over existing audio now replaces it (retake), like BandLab — with a Layer option in Audio settings to keep both.',
+      'New Tuner: see the note you’re singing or playing live, with cents sharp/flat.',
+    ],
+  },
+  {
     version: '0.12.9',
     date: '2026-10-30',
     changes: [

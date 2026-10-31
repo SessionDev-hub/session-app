@@ -7,6 +7,26 @@
   let playFrom = 0;
   let takeCount = 0;
 
+  // Recording mode: 'replace' = a new take over existing audio becomes the take (like BandLab retake);
+  // 'layer' = keep both (overdub). Saved on this computer.
+  const RECKEY = 'ps.recordMode';
+  S.recordMode = (() => { try { return localStorage.getItem(RECKEY) || 'replace'; } catch (e) { return 'replace'; } })();
+  S.setRecordMode = (m) => { S.recordMode = m === 'layer' ? 'layer' : 'replace'; try { localStorage.setItem(RECKEY, S.recordMode); } catch (e) {} };
+
+  /** Remove the [s,e] span from other clips on a track (trim/split/remove), leaving the new take clean. */
+  function clearSpan(track, s, e, exceptId) {
+    const EPS = 1e-3;
+    for (const c of [...track.clips]) {
+      if (c.id === exceptId) continue;
+      const cs = c.start, ce = c.start + c.dur;
+      if (ce <= s + EPS || cs >= e - EPS) continue;          // no overlap
+      if (cs >= s - EPS && ce <= e + EPS) { S.clipOps.remove(track, c); continue; } // fully covered
+      if (cs < s && ce > e) { const r = S.clipOps.split(track, c, e); if (r) S.clipOps.trimEnd(c, s); else S.clipOps.remove(track, c); continue; } // take sits inside: keep both ends
+      if (cs < s) { S.clipOps.trimEnd(c, s); continue; }     // keep the left part
+      S.clipOps.trimStart(c, e);                             // keep the right part
+    }
+  }
+
   S.refresh = {
     structure() {
       S.engine.sync(S.project);
@@ -129,8 +149,11 @@
     const idx = S.project.tracks.findIndex((t) => t.id === res.trackId);
     if (idx < 0) return;
     const silent = takePeak(res.buffer) < SILENCE_PEAK;
+    S.history.push(); // make the take (and any replaced audio) one undo step
     const id = S.addAsset('Take ' + ++takeCount, res.buffer);
     const clip = S.addClip(idx, id, res.startPos + res.startShift, { offset: res.compensation, dur: res.buffer.duration - res.compensation });
+    // Retake: a new take over existing audio replaces it, unless Layer mode is on.
+    if (S.recordMode !== 'layer' && !silent) clearSpan(S.project.tracks[idx], clip.start, clip.start + clip.dur, clip.id);
     S.timeline.selected = clip.id;
     S.playhead = clip.start + clip.dur;
     S.timeline.resize();
@@ -664,6 +687,7 @@
     if (S.match) S.match.init();
     if (S.sounds) S.sounds.init();
     if (S.sessions) S.sessions.init();
+    if (S.tuner) S.tuner.init();
     if (S.updates) S.updates.init();
     initGridControls();
     initMixerPanel();
