@@ -2,6 +2,15 @@
  * "What's new" popup after updating, and the list appears in Settings -> About. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.15.0',
+    date: '2026-10-31',
+    changes: [
+      'Live sessions: start a real-time session from a chat — send your project, then build together.',
+      'See who’s in the room, and play / stop / scrub stays in sync for everyone live.',
+      'Powered by your Discord login; only Beta Testers can join a room.',
+    ],
+  },
+  {
     version: '0.14.3',
     date: '2026-10-31',
     changes: [

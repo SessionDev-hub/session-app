@@ -11,5 +11,11 @@
     "guildId": "1565508129486282864",
     "betaRoleId": "1565525235388649623",
     "gate": true
+  },
+  "apinator": {
+    "_comment": "Client-safe values only. The SECRET belongs on the server (fly.dev), never here.",
+    "appKey": "app_d10d9ee9c5ae545cd6d7f61694b211b6cf5aed1f",
+    "cluster": "us",
+    "authEndpoint": "https://session-collab-auth.fly.dev/v1/collab/auth"
   }
 }

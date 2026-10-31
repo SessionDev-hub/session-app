@@ -11,7 +11,8 @@ const dc = cfg.discord || {};
 const out =
   'window.__UPDATE_GITHUB__ = ' + JSON.stringify({ owner: gh.owner || '', repo: gh.repo || '' }) + ';\n' +
   'window.__SESSION_VERSION__ = ' + JSON.stringify(pkg.version) + ';\n' +
-  'window.__DISCORD__ = ' + JSON.stringify({ clientId: dc.clientId || '', invite: dc.invite || '', redirect: dc.redirect || 'http://localhost/session-oauth', guildId: dc.guildId || '', betaRoleId: dc.betaRoleId || '', gate: dc.gate !== false }) + ';\n';
+  'window.__DISCORD__ = ' + JSON.stringify({ clientId: dc.clientId || '', invite: dc.invite || '', redirect: dc.redirect || 'http://localhost/session-oauth', guildId: dc.guildId || '', betaRoleId: dc.betaRoleId || '', gate: dc.gate !== false }) + ';\n' +
+  'window.__APINATOR__ = ' + JSON.stringify({ appKey: (cfg.apinator || {}).appKey || '', cluster: (cfg.apinator || {}).cluster || 'us', authEndpoint: (cfg.apinator || {}).authEndpoint || '' }) + ';\n';
 fs.writeFileSync(path.join(root, 'renderer', 'update-target.js'), out);
 if (require.main === module) console.log('wrote renderer/update-target.js');
 module.exports = {};

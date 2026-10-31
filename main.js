@@ -181,7 +181,7 @@ ipcMain.handle('discord:login', (_e, { clientId, redirect, guildId }) => {
       const token = q.get('access_token');
       if (token)
         Promise.all([discordProfile(token), discordMember(token, guildId)])
-          .then(([p, mem]) => finish({ ok: true, profile: p, inGuild: mem.inGuild, roles: mem.roles }))
+          .then(([p, mem]) => finish({ ok: true, profile: p, inGuild: mem.inGuild, roles: mem.roles, token: token }))
           .catch((e) => finish({ ok: false, error: String(e.message || e) }));
       else finish({ ok: false, error: q.get('error_description') || q.get('error') || 'Sign-in was not completed.' });
       return true;

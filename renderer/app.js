@@ -90,11 +90,14 @@
     pb.innerHTML = S.ui.icon(playing ? 'pause' : 'play', 18);
   }
 
+  const collabTx = (type, pos) => { try { if (S.collab && S.collab.active()) S.collab.notifyTransport(type, pos); } catch (e) {} };
+
   S.play = () => {
     if (S.engine.playing) return;
     playFrom = S.playhead;
     S.engine.play(S.playhead);
     updateButtons();
+    collabTx('play', S.playhead);
   };
 
   S.stopTransport = () => {
@@ -107,12 +110,14 @@
     }
     updateButtons();
     S.timeline.dirty = true;
+    collabTx('stop', S.playhead);
   };
 
   S.seek = (t) => {
     S.playhead = t;
     if (S.engine.playing && !S.engine.isRecording) S.engine.play(t);
     S.timeline.dirty = true;
+    collabTx('seek', t);
   };
 
   async function startRecording() {
@@ -692,6 +697,7 @@
     if (S.sounds) S.sounds.init();
     if (S.sessions) S.sessions.init();
     if (S.tuner) S.tuner.init();
+    if (S.collab) S.collab.init();
     if (S.updates) S.updates.init();
     initGridControls();
     initMixerPanel();

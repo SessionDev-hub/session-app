@@ -86,9 +86,26 @@
     if (!hasRole) return render('norole', { name: r.profile && r.profile.name, inGuild: r.inGuild });
     // passed
     savePass(r.profile && r.profile.id);
+    setAuth(r.token, r.profile);
     try { if (S.account && S.account.set) S.account.set(r.profile); } catch (e) {}
     unmount();
   }
+
+  /* In-memory Discord auth for the session (used by collab to sign in to the realtime
+   * service). The token is a credential: kept only in memory, never written to disk. */
+  const auth = (S.auth = S.auth || { token: null, profile: null });
+  function setAuth(token, profile) { if (token) auth.token = token; if (profile) auth.profile = profile; }
+  // Get a Discord token for the realtime auth endpoint. Reuses the one from launch;
+  // if we don't have it (e.g. offline-cached pass), does a quiet re-login to fetch one.
+  G.getToken = async () => {
+    if (auth.token) return auth.token;
+    if (typeof host().discordLogin !== 'function') return null;
+    try {
+      const r = await host().discordLogin({ clientId: cfg().clientId, redirect: cfg().redirect, guildId: cfg().guildId });
+      if (r && r.ok) { setAuth(r.token, r.profile); return r.token || null; }
+    } catch (e) {}
+    return null;
+  };
 
   function start() {
     if (!active()) return; // not configured, or not a platform we can gate — let the app run

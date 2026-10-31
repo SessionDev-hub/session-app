@@ -29,7 +29,7 @@ const OPTS = {
   selfDefending: false,
 };
 
-const SKIP = new Set(['lame.min.js']); // third-party libs: already minified, leave them be
+const SKIP = new Set(['lame.min.js', 'apinator.min.js']); // third-party libs: already minified, leave them be
 function obfuscateDir(dir) {
   for (const f of fs.readdirSync(dir)) {
     const p = path.join(dir, f);

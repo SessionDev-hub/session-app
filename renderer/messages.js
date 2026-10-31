@@ -155,13 +155,21 @@
         '<button class="pw-ib msg-attach" title="Send a file (up to 25 MB)">' + S.ui.icon('import', 16) + '</button>' +
         '<button class="pw-ib msg-mixsend" title="Send the current mix (WAV)">' + S.ui.icon('note', 16) + '</button>' +
         '<button class="pw-ib msg-sessend" title="Send this whole session — they can open it in Session">' + S.ui.icon('file', 16) + '</button>' +
+        ((S.collab && S.collab.available()) ? '<button class="pw-ib msg-live" title="Start a live session — build together in real time">' + S.ui.icon('headphones', 16) + '</button>' : '') +
         '<input class="msg-in" placeholder="Message…" maxlength="8000"><button class="btn primary msg-send">Send</button></div>';
       const log = main.querySelector('.msg-log');
       (data.messages || []).forEach((m) => {
         const mine = data.me && m.from === data.me;
         const b = el('div', 'msg-b ' + (mine ? 'me' : 'them'));
         let inner = '';
-        if (m.text) inner += '<div class="msg-t">' + esc(m.text) + '</div>';
+        const liveM = m.text && m.text.match(/\[\[live:([a-z0-9]+)\]\]/i);
+        if (liveM) {
+          const mine2 = data.me && m.from === data.me;
+          inner += '<div class="msg-live-invite">' + S.ui.icon('headphones', 13) +
+            '<span>Live session</span>' +
+            (mine2 ? '<em>invite sent</em>' : '<button class="msg-joinbtn" data-room="' + esc(liveM[1]) + '">Join</button>') +
+            '</div>';
+        } else if (m.text) inner += '<div class="msg-t">' + esc(m.text) + '</div>';
         if (m.file) {
           const isProj = /\.pstudio$/i.test(m.file.name || '');
           inner += '<div class="msg-file">' + S.ui.icon(isProj ? 'file' : 'import', 12) + ' ' + esc(m.file.name) +
@@ -216,6 +224,29 @@
         } catch (e) { S.toast(e.message || 'Could not send the session'); }
         sessend.disabled = false; sessend.innerHTML = prev;
       };
+      // start a live session: send the project so they have it, host a room, send the invite
+      const live = main.querySelector('.msg-live');
+      if (live) live.onclick = async () => {
+        if (!S.collab || !S.collab.available()) return S.toast('Live collab isn’t available in this build.');
+        live.disabled = true; const prev = live.innerHTML; live.innerHTML = '…';
+        try {
+          if (S.native && S.native.syncStates) { try { await S.native.syncStates(); } catch (e) {} }
+          const bytes = new TextEncoder().encode(JSON.stringify(S.packProject()));
+          await sendBytes((S.project.name || 'session') + '.pstudio', bytes);
+          const rid = await S.collab.startHosting();
+          await api('POST', '/send', { peer: id, text: '🎚️ Live session started — open the session above, then tap Join. [[live:' + rid + ']]' });
+          await drawThread(id, false, c);
+        } catch (e) { S.toast(e.message || 'Could not start a live session'); }
+        live.disabled = false; live.innerHTML = prev;
+      };
+      // joining a live session from an invite
+      log.querySelectorAll('.msg-joinbtn').forEach((btn) => {
+        btn.onclick = async () => {
+          btn.disabled = true; const was = btn.textContent; btn.textContent = '…';
+          try { await S.collab.join(btn.dataset.room); dlg.close(); }
+          catch (e) { S.toast(e.message || 'Could not join'); btn.disabled = false; btn.textContent = was; }
+        };
+      });
       // receiving: wire Open / Save buttons on file messages
       log.querySelectorAll('.msg-fbtn').forEach((btn) => {
         btn.onclick = async () => {
