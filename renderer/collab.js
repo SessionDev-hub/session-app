@@ -57,7 +57,8 @@
     channel = client.subscribe(name);
     channel.bind('realtime:subscription_succeeded', () => {
       connected = true; refreshMembers();
-      // ask the host to sync the newcomer to the current transport state
+      startStateSync();
+      // ask the host to sync the newcomer to the current transport + project state
       if (!host) { try { channel.trigger('client-hello', { at: Date.now() }); } catch (e) {} }
       S.toast && S.toast(host ? 'Live session started — invite sent.' : 'Joined the live session.');
       emit();
@@ -77,7 +78,12 @@
     channel.bind('realtime:member_removed', () => refreshMembers());
     // control events
     channel.bind('client-transport', (d) => applyTransport(d));
-    channel.bind('client-hello', () => { broadcastTransport(currentTransport()); });
+    channel.bind('client-state', (d) => applyState(d));
+    channel.bind('client-hello', () => {
+      // bring a newcomer fully up to date: current edits, then transport
+      diffSend(true);
+      broadcastTransport(currentTransport());
+    });
   }
 
   function refreshMembers() {
@@ -116,6 +122,62 @@
     applying = false;
   }
 
+  /* ---- live edit sync (M2) ----
+   * We broadcast the editable project state (tracks + master + a few globals) — the same
+   * shape the undo history snapshots — minus any audio. The other side applies it with the
+   * same refresh path undo/redo uses. Clips whose audio a peer doesn't have yet are kept in
+   * the model (shown empty, silent) — never dropped — so a sync can't delete anyone's work.
+   * Two triggers: an immediate send right after an edit (history-changed), plus a light poll
+   * that catches continuous gestures (dragging a clip, riding a fader). Only changed state
+   * is sent. */
+  let pollTimer = 0, editTimer = 0, lastSent = '';
+
+  function buildState() {
+    const p = S.project;
+    return { tracks: p.tracks, master: p.master, bpm: p.bpm, bpb: p.beatsPerBar, loop: p.loop };
+  }
+  function diffSend(force) {
+    if (!C.active() || applying || !channel) return;
+    let js; try { js = JSON.stringify(buildState()); } catch (e) { return; }
+    if (!force && js === lastSent) return;
+    lastSent = js;
+    try { channel.trigger('client-state', JSON.parse(js)); } catch (e) {}
+  }
+  function applyState(st) {
+    if (!st || !Array.isArray(st.tracks) || applying) return;
+    applying = true;
+    try {
+      st.tracks.forEach((t) => { t.fx = t.fx || []; t.clips = t.clips || []; t.arm = false; });
+      S.project.tracks = st.tracks;
+      if (st.master) S.project.master = st.master;
+      if (st.bpm) S.project.bpm = st.bpm;
+      if (st.bpb) S.project.beatsPerBar = st.bpb;
+      if (st.loop) S.project.loop = st.loop;
+      if (S.timeline) S.timeline.selected = null;
+      if (S.refresh && S.refresh.structure) S.refresh.structure();
+      if (S.engine && S.engine.reapplyFxParams) S.engine.reapplyFxParams();
+      if (S.timeline && S.timeline.resize) S.timeline.resize();
+      // record what we now have so the poll doesn't echo it straight back
+      try { lastSent = JSON.stringify(buildState()); } catch (e) {}
+    } catch (e) { try { console.error('[collab] applyState', e); } catch (_) {} }
+    applying = false;
+  }
+  function startStateSync() {
+    stopStateSync();
+    try { lastSent = JSON.stringify(buildState()); } catch (e) { lastSent = ''; }
+    pollTimer = setInterval(() => diffSend(false), 300);
+  }
+  function stopStateSync() {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = 0; }
+    if (editTimer) { clearTimeout(editTimer); editTimer = 0; }
+  }
+  // immediate-ish send after a discrete edit (undo/redo included)
+  C.notifyEdit = () => {
+    if (!C.active() || applying) return;
+    if (editTimer) clearTimeout(editTimer);
+    editTimer = setTimeout(() => diffSend(false), 60);
+  };
+
   /* ---- room lifecycle ---- */
   C.startHosting = async () => {
     await ensureClient();
@@ -132,6 +194,8 @@
     joinChannel(rid);
   };
   function teardown() {
+    stopStateSync();
+    lastSent = '';
     try { if (channel && room) client.unsubscribe('presence-sess-' + room); } catch (e) {}
     channel = null; room = null; host = false; connected = false; members = [];
     emit();
@@ -142,7 +206,11 @@
     S.toast && S.toast('Left the live session.');
   };
 
-  C.init = () => { if (S.collabBar) S.collabBar.init(); };
+  C.init = () => {
+    if (S.collabBar) S.collabBar.init();
+    // every edit snapshots history — use that as the "something changed" signal to sync live
+    try { S.on && S.on('history-changed', () => C.notifyEdit()); } catch (e) {}
+  };
 
   /* ---- presence bar: a small banner showing who's in the room ---- */
   const bar = (S.collabBar = {});

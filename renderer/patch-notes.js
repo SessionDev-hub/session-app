@@ -2,6 +2,15 @@
  * "What's new" popup after updating, and the list appears in Settings -> About. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.16.0',
+    date: '2026-10-31',
+    changes: [
+      'Live sessions now sync your edits in real time — move, add, trim or delete clips and everyone in the room sees it.',
+      'Volume, pan, mute/solo, effects and tempo stay in sync live too.',
+      'Works alongside shared transport, so you can build a track together from anywhere.',
+    ],
+  },
+  {
     version: '0.15.2',
     date: '2026-10-31',
     changes: [
