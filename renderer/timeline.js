@@ -1016,6 +1016,9 @@
     g.textBaseline = 'middle';
     g.font = '600 11px Segoe UI, system-ui, sans-serif';
 
+    // Any grid line closer than this (in px) is invisible, so we never draw past it — and
+    // a hard cap guarantees a bad tempo/zoom can never spin a draw loop forever (freeze).
+    const MINPX = 2, CAP = 20000;
     if (grid.mode === 'bars') {
       const beat = S.grid.beat();
       const bar = S.grid.bar();
@@ -1023,11 +1026,11 @@
       // fine snap lines
       if (step * TL.pps >= 7 && step < beat - 1e-9) {
         g.fillStyle = 'rgba(255,255,255,.025)';
-        for (let i = Math.floor(off / TL.pps / step); i * step * TL.pps - off < w; i++) g.fillRect(Math.round(i * step * TL.pps - off), RULER, 1, h - RULER);
+        for (let i = Math.floor(off / TL.pps / step), n = 0; i * step * TL.pps - off < w && n < CAP; i++, n++) g.fillRect(Math.round(i * step * TL.pps - off), RULER, 1, h - RULER);
       }
       // beats
       if (beat * TL.pps >= 7) {
-        for (let i = Math.floor(off / TL.pps / beat); i * beat * TL.pps - off < w; i++) {
+        for (let i = Math.floor(off / TL.pps / beat), n = 0; i * beat * TL.pps - off < w && n < CAP; i++, n++) {
           const x = Math.round(i * beat * TL.pps - off);
           g.fillStyle = 'rgba(255,255,255,.05)';
           g.fillRect(x, RULER, 1, h - RULER);
@@ -1035,22 +1038,24 @@
           g.fillRect(x, RULER - 5, 1, 4);
         }
       }
-      // bars, labelled every n bars so labels never collide
-      const every = Math.max(1, Math.pow(2, Math.ceil(Math.log2(Math.max(1, 40 / (bar * TL.pps))))));
-      for (let i = Math.floor(off / TL.pps / bar); i * bar * TL.pps - off < w; i++) {
-        const x = Math.round(i * bar * TL.pps - off);
-        g.fillStyle = 'rgba(255,255,255,.1)';
-        g.fillRect(x, RULER, 1, h - RULER);
-        if (i % every === 0) {
-          g.fillStyle = 'rgba(255,255,255,.45)';
-          g.fillRect(x, 4, 1, RULER - 5);
-          g.fillStyle = '#d7d9e0';
-          g.fillText(String(i + 1), x + 5, 12);
-          if (bar * TL.pps * every > 90) {
-            g.fillStyle = '#5b5e69';
-            g.font = '10px Segoe UI, system-ui, sans-serif';
-            g.fillText(timeLabel(i * bar), x + 5, 25);
-            g.font = '600 11px Segoe UI, system-ui, sans-serif';
+      // bars, labelled every n bars so labels never collide — only when bars are wide enough to see
+      if (bar * TL.pps >= MINPX) {
+        const every = Math.max(1, Math.pow(2, Math.ceil(Math.log2(Math.max(1, 40 / (bar * TL.pps))))));
+        for (let i = Math.floor(off / TL.pps / bar), n = 0; i * bar * TL.pps - off < w && n < CAP; i++, n++) {
+          const x = Math.round(i * bar * TL.pps - off);
+          g.fillStyle = 'rgba(255,255,255,.1)';
+          g.fillRect(x, RULER, 1, h - RULER);
+          if (i % every === 0) {
+            g.fillStyle = 'rgba(255,255,255,.45)';
+            g.fillRect(x, 4, 1, RULER - 5);
+            g.fillStyle = '#d7d9e0';
+            g.fillText(String(i + 1), x + 5, 12);
+            if (bar * TL.pps * every > 90) {
+              g.fillStyle = '#5b5e69';
+              g.font = '10px Segoe UI, system-ui, sans-serif';
+              g.fillText(timeLabel(i * bar), x + 5, 25);
+              g.font = '600 11px Segoe UI, system-ui, sans-serif';
+            }
           }
         }
       }
@@ -1058,17 +1063,19 @@
       const step = S.grid.step();
       if (step * TL.pps >= 7) {
         g.fillStyle = 'rgba(255,255,255,.035)';
-        for (let i = Math.floor(off / TL.pps / step); i * step * TL.pps - off < w; i++) g.fillRect(Math.round(i * step * TL.pps - off), RULER, 1, h - RULER);
+        for (let i = Math.floor(off / TL.pps / step), n = 0; i * step * TL.pps - off < w && n < CAP; i++, n++) g.fillRect(Math.round(i * step * TL.pps - off), RULER, 1, h - RULER);
       }
       const ts = tickStep();
-      for (let s = Math.floor(off / TL.pps / ts) * ts; s * TL.pps - off < w; s += ts) {
-        const x = Math.round(s * TL.pps - off);
-        g.fillStyle = 'rgba(255,255,255,.09)';
-        g.fillRect(x, RULER, 1, h - RULER);
-        g.fillStyle = 'rgba(255,255,255,.4)';
-        g.fillRect(x, 4, 1, RULER - 5);
-        g.fillStyle = '#d7d9e0';
-        g.fillText(timeLabel(s), x + 5, 12);
+      if (ts > 0 && ts * TL.pps >= MINPX) {
+        for (let s = Math.floor(off / TL.pps / ts) * ts, n = 0; s * TL.pps - off < w && n < CAP; s += ts, n++) {
+          const x = Math.round(s * TL.pps - off);
+          g.fillStyle = 'rgba(255,255,255,.09)';
+          g.fillRect(x, RULER, 1, h - RULER);
+          g.fillStyle = 'rgba(255,255,255,.4)';
+          g.fillRect(x, 4, 1, RULER - 5);
+          g.fillStyle = '#d7d9e0';
+          g.fillText(timeLabel(s), x + 5, 12);
+        }
       }
     }
   }

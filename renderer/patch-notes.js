@@ -2,6 +2,38 @@
  * "What's new" popup after updating, and the list appears in Settings -> About. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.18.1',
+    date: '2026-11-03',
+    changes: [
+      'Two new effects: Session Flanger (jet-sweep) and Session Chorus (thick, wide doubling). Find them under + Add effect.',
+    ],
+  },
+  {
+    version: '0.18.0',
+    date: '2026-11-03',
+    changes: [
+      'Metronome: a click on every beat while you play or record (the timer button next to BPM).',
+      'Auto tempo: the new “Auto” button detects the BPM from a clip for you.',
+    ],
+  },
+  {
+    version: '0.17.3',
+    date: '2026-11-03',
+    changes: [
+      'Audio that cut out after a device change or sleep now comes back on its own — no restart needed.',
+      'Latency: new “Estimate (no mic)” option for headphone users, and the mic test now falls back to it automatically when it can’t hear the clicks.',
+    ],
+  },
+  {
+    version: '0.17.2',
+    date: '2026-11-03',
+    changes: [
+      'Looping now works for long loops that run past the end of your clips (it no longer stops early).',
+      'Fixed the timeline freezing when zoomed all the way out.',
+      'Knobs no longer jump to the side when you turn them quickly.',
+    ],
+  },
+  {
     version: '0.17.1',
     date: '2026-11-03',
     changes: [

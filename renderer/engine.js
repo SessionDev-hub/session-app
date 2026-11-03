@@ -124,6 +124,22 @@
       this.appOut.connect(ctx.destination);
       this.masterLR = this.stereoMeter(this.limiter);
       this.monitorVol = 1; // how loud you hear yourself while monitoring/recording
+
+      // A device change, system sleep or power event can drop the audio context to
+      // 'suspended'/'interrupted' — it then stays SILENT until the context is recreated
+      // (i.e. until the app is restarted). Auto-resume whenever that happens so sound
+      // comes back on its own.
+      try {
+        this.ctx.onstatechange = () => {
+          const st = this.ctx.state;
+          if (st === 'suspended' || st === 'interrupted') this.ctx.resume().catch(() => {});
+        };
+      } catch (e) {}
+    }
+
+    /** Make sure the context is actually running; call before/while playing. */
+    ensureRunning() {
+      try { if (this.ctx.state !== 'running' && this.ctx.state !== 'closed') this.ctx.resume().catch(() => {}); } catch (e) {}
     }
 
     /** Global app output level (0..~1.5). 1 = unity. */

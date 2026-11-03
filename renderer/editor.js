@@ -120,13 +120,14 @@
       move.shift = e.shiftKey;
       const up = () => {
         wrap.classList.remove('active');
-        svg.removeEventListener('pointermove', move);
-        svg.removeEventListener('pointerup', up);
-        svg.removeEventListener('pointercancel', up);
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+        window.removeEventListener('pointercancel', up);
       };
-      svg.addEventListener('pointermove', move);
-      svg.addEventListener('pointerup', up);
-      svg.addEventListener('pointercancel', up);
+      // track on window (absolute Y) so a fast flick can't lose the drag if the UI re-renders
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+      window.addEventListener('pointercancel', up);
     });
     svg.addEventListener(
       'wheel',

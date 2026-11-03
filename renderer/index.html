@@ -89,6 +89,8 @@
         <label class="lbl" for="bpm">BPM</label>
         <input id="bpm" class="txt num bpm" type="number" min="20" max="400" step="0.5" value="120" />
         <button id="btn-tap" class="btn ghost sm" title="Tap this button in time with the music to set the BPM">Tap</button>
+        <button id="btn-autobpm" class="btn ghost sm" title="Auto-detect the tempo from the selected clip (or the first clip)">Auto</button>
+        <button id="btn-metro" class="btn ghost sm toggle" data-icon="timer" title="Metronome: a click on every beat while playing or recording"></button>
         <select id="sig" class="sel sm" title="Beats per bar"></select>
       </div>
 
@@ -173,6 +175,7 @@
   <script src="sounds.js"></script>
   <script src="sessions.js"></script>
   <script src="tuner.js"></script>
+  <script src="metronome.js"></script>
   <script src="messages.js"></script>
   <script src="patch-notes.js"></script>
   <script src="vault.js"></script>

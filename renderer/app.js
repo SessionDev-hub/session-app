@@ -389,14 +389,20 @@
   /* ---------- main loop ---------- */
   let inShown = 0;
   function loop() {
+    // if the audio context slipped out of 'running' while we're meant to be playing
+    // (device change, sleep, power event), bring it back so sound doesn't stay dead
+    if (S.engine.playing && S.engine.ensureRunning) S.engine.ensureRunning();
     const pos = S.engine.position();
     if (pos !== null) {
       S.playhead = pos;
       const lp = S.project.loop;
-      if (lp && lp.on && !S.engine.isRecording && lp.end - lp.start > 0.05 && pos >= lp.end) {
+      const looping = lp && lp.on && !S.engine.isRecording && lp.end - lp.start > 0.05;
+      if (looping && pos >= lp.end) {
         S.engine.play(lp.start); // jump back to the loop start and keep going
         S.playhead = lp.start;
-      } else if (!S.engine.isRecording && pos > S.projectLength() + 0.4) S.stopTransport();
+      } else if (!S.engine.isRecording && !looping && pos > S.projectLength() + 0.4) S.stopTransport();
+      // while looping we never auto-stop at the end of content — the loop region drives playback,
+      // so a loop that extends past the last clip still wraps correctly.
     }
     $('time').textContent = fmtTime(S.playhead);
     $('bbt').textContent = S.grid.bbt(S.playhead);
@@ -454,6 +460,19 @@
     updateLatencyReadout();
   }
 
+  // No-mic fallback: use the browser's reported output/input delay. Works on headphones,
+  // interfaces, anything — no clicks needed. Less exact than the acoustic measure, but a
+  // good baseline so recorded takes still line up.
+  function useAutoLatency(quiet) {
+    const sec = (S.ctx.baseLatency || 0) + (S.ctx.outputLatency || 0) + S.engine.inputLatency();
+    const clamped = Math.min(0.5, Math.max(0, sec));
+    S.engine.calibrated = clamped;
+    writeStore(calKey(), { seconds: clamped, sampleRate: S.ctx.sampleRate });
+    updateLatencyReadout();
+    if (!quiet) S.toast('Using automatic latency estimate: ' + Math.round(clamped * 1000) + ' ms');
+  }
+  S.useAutoLatency = useAutoLatency;
+
   async function runCalibration() {
     if (S.engine.isRecording) return S.toast('Stop recording first');
     if (!(await S.ensureInput())) return;
@@ -467,6 +486,9 @@
       S.toast('Latency measured: ' + Math.round(r.seconds * 1000) + ' ms');
     } catch (e) {
       S.toast(e.message);
+      // Mic couldn't hear the clicks (headphones / quiet mic) — fall back to the automatic
+      // estimate so the user still gets a usable, aligned value instead of nothing.
+      if (/hear the test clicks/i.test(e.message || '')) useAutoLatency();
     } finally {
       btn.disabled = false;
       updateLatencyReadout();
@@ -513,6 +535,24 @@
     S.emit('tempo-changed', { bpm: S.project.bpm, beatsPerBar: S.project.beatsPerBar });
   }
 
+  // Auto-detect tempo from the selected clip (or the first clip that has audio).
+  function autoBpm() {
+    let asset = null;
+    const sel = S.timeline && S.timeline.selected;
+    if (sel) for (const t of S.project.tracks) { const c = t.clips.find((c) => c.id === sel); if (c) { asset = c.asset; break; } }
+    if (!asset) for (const t of S.project.tracks) { if (t.clips.length) { asset = t.clips[0].asset; break; } }
+    const buf = asset && S.buffers.get(asset);
+    if (!buf) return S.toast('Add or select a clip first, then Auto detects its tempo.');
+    if (!S.detectBpm) return;
+    S.toast('Detecting tempo…');
+    setTimeout(() => {
+      const bpm = S.detectBpm(buf);
+      if (!bpm) return S.toast('Couldn’t find a clear tempo in that clip.');
+      setBpm(bpm);
+      S.toast('Detected tempo: ' + bpm + ' BPM');
+    }, 20);
+  }
+
   const taps = [];
   function tapTempo() {
     const now = performance.now();
@@ -532,6 +572,7 @@
       e.stopPropagation();
     };
     $('btn-tap').onclick = tapTempo;
+    { const ab = $('btn-autobpm'); if (ab) ab.onclick = autoBpm; }
     $('sig').onchange = (e) => {
       S.project.beatsPerBar = +e.target.value;
       syncGridUI();
@@ -706,6 +747,7 @@
     if (S.sounds) S.sounds.init();
     if (S.sessions) S.sessions.init();
     if (S.tuner) S.tuner.init();
+    if (S.metronome) S.metronome.init();
     if (S.collab) S.collab.init();
     if (S.updates) S.updates.init();
     initGridControls();

@@ -75,11 +75,14 @@
       const p0 = track.pan;
       const move = (ev) => set(p0 + ((y0 - ev.clientY) / 120) * (ev.shiftKey ? 0.2 : 1));
       const up = () => {
-        svg.removeEventListener('pointermove', move);
-        svg.removeEventListener('pointerup', up);
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+        window.removeEventListener('pointercancel', up);
       };
-      svg.addEventListener('pointermove', move);
-      svg.addEventListener('pointerup', up);
+      // track on window so a fast turn can't drop the drag when the mixer re-renders
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+      window.addEventListener('pointercancel', up);
     });
     svg.addEventListener('dblclick', () => set(0));
     svg.addEventListener(
