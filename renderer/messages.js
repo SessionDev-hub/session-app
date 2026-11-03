@@ -162,12 +162,12 @@
         const mine = data.me && m.from === data.me;
         const b = el('div', 'msg-b ' + (mine ? 'me' : 'them'));
         let inner = '';
-        const liveM = m.text && m.text.match(/\[\[live:([a-z0-9]+)\]\]/i);
+        const liveM = m.text && m.text.match(/\[\[live:([a-z0-9]+)(?::([a-z0-9]+))?\]\]/i);
         if (liveM) {
           const mine2 = data.me && m.from === data.me;
           inner += '<div class="msg-live-invite">' + S.ui.icon('headphones', 13) +
             '<span>Live session</span>' +
-            (mine2 ? '<em>invite sent</em>' : '<button class="msg-joinbtn" data-room="' + esc(liveM[1]) + '">Join</button>') +
+            (mine2 ? '<em>invite sent</em>' : '<button class="msg-joinbtn" data-room="' + esc(liveM[1]) + '" data-key="' + esc(liveM[2] || '') + '">Join</button>') +
             '</div>';
         } else if (m.text) inner += '<div class="msg-t">' + esc(m.text) + '</div>';
         if (m.file) {
@@ -236,10 +236,12 @@
           const bytes = new TextEncoder().encode(JSON.stringify(S.packProject()));
           if (!bytes.byteLength) throw new Error('Nothing to send yet.');
           if (bytes.byteLength > 25 * 1024 * 1024) throw new Error('This session is too big to send (25 MB max).');
-          const rid = await S.collab.startHosting();
+          const r = await S.collab.startHosting();
+          const rid = (r && r.roomId) || r; const rkey = (r && r.roomKey) || '';
           hosting = true;
-          // one message carries both the project and the join invite (Vault needs the text)
-          const invite = '🎚️ Live session — open this session, then tap Join. [[live:' + rid + ']]';
+          // one message carries both the project and the join invite (Vault needs the text).
+          // The room key rides inside this end-to-end-encrypted message, so the server never sees it.
+          const invite = '🎚️ Live session — open this session, then tap Join. [[live:' + rid + (rkey ? ':' + rkey : '') + ']]';
           await api('POST', '/send', { peer: id, text: invite, file: { name: (S.project.name || 'session') + '.pstudio', b64: S.b64(bytes) } });
           await drawThread(id, false, c);
         } catch (e) {
@@ -252,7 +254,7 @@
       log.querySelectorAll('.msg-joinbtn').forEach((btn) => {
         btn.onclick = async () => {
           btn.disabled = true; const was = btn.textContent; btn.textContent = '…';
-          try { await S.collab.join(btn.dataset.room); dlg.close(); }
+          try { await S.collab.join(btn.dataset.room, btn.dataset.key || ''); dlg.close(); }
           catch (e) { S.toast(e.message || 'Could not join'); btn.disabled = false; btn.textContent = was; }
         };
       });

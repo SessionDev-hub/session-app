@@ -2,6 +2,23 @@
  * "What's new" popup after updating, and the list appears in Settings -> About. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.17.1',
+    date: '2026-11-03',
+    changes: [
+      'Dropping an audio file onto a track now lands on THAT track, not track 1.',
+      'New Back-to-start button (and the Home key) jumps the playhead to the beginning.',
+      'Settings → Playback: choose whether Stop rewinds to the start or stays where you are.',
+    ],
+  },
+  {
+    version: '0.17.0',
+    date: '2026-10-31',
+    changes: [
+      'Live sessions now share audio: import a song or record a take and the other person hears it too.',
+      'Shared audio is end-to-end encrypted with a room key — the relay server only ever sees scrambled data.',
+    ],
+  },
+  {
     version: '0.16.0',
     date: '2026-10-31',
     changes: [

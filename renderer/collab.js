@@ -18,6 +18,8 @@
   let client = null, channel = null, room = null, host = false;
   let connected = false, applying = false;
   let members = [];
+  let roomKey = null, cryptoKey = null;      // M3: shared secret for encrypting shared audio
+  const sharedAssets = new Set();            // asset ids we've uploaded or received
   const listeners = new Set();
 
   C.available = () => !!window.Apinator && !!cfg().appKey;
@@ -79,6 +81,7 @@
     // control events
     channel.bind('client-transport', (d) => applyTransport(d));
     channel.bind('client-state', (d) => applyState(d));
+    channel.bind('client-asset', (d) => receiveAsset(d));
     channel.bind('client-hello', () => {
       // bring a newcomer fully up to date: current edits, then transport
       diffSend(true);
@@ -138,6 +141,7 @@
   }
   function diffSend(force) {
     if (!C.active() || applying || !channel) return;
+    scanAssets(); // M3: push any new audio (recordings/imports) to the room
     let js; try { js = JSON.stringify(buildState()); } catch (e) { return; }
     if (!force && js === lastSent) return;
     lastSent = js;
@@ -178,24 +182,99 @@
     editTimer = setTimeout(() => diffSend(false), 60);
   };
 
+  /* ---- shared audio (M3) ----
+   * Imports and recordings are far too big for realtime events, so they travel as blobs
+   * through the collab service. They are ENCRYPTED here with a per-room key that only ever
+   * travels in the end-to-end-encrypted Vault invite — the server only stores ciphertext.
+   * When a peer is missing a clip's audio, we upload it once and announce it; the peer
+   * downloads, decrypts and decodes it, and the clip fills in. */
+  function randomHex(n) { return Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) => b.toString(16).padStart(2, '0')).join(''); }
+  function hexToBytes(h) { return Uint8Array.from((h || '').match(/.{2}/g) || [], (x) => parseInt(x, 16)); }
+  async function getKey() {
+    if (cryptoKey) return cryptoKey;
+    if (!roomKey) return null;
+    try { cryptoKey = await crypto.subtle.importKey('raw', hexToBytes(roomKey), 'AES-GCM', false, ['encrypt', 'decrypt']); } catch (e) { return null; }
+    return cryptoKey;
+  }
+  const apiBase = () => (cfg().authEndpoint || '').replace(/\/auth$/, '');
+  async function authHeader() {
+    const t = (S.gate && S.gate.getToken) ? await S.gate.getToken() : (S.auth && S.auth.token);
+    return t ? { Authorization: 'Bearer ' + t } : {};
+  }
+
+  function scanAssets() {
+    if (!roomKey || !apiBase() || !window.crypto || !crypto.subtle) return;
+    const refd = new Set();
+    S.project.tracks.forEach((t) => (t.clips || []).forEach((c) => c && refd.add(c.asset)));
+    refd.forEach((a) => { if (a && S.buffers.has(a) && !sharedAssets.has(a)) shareAsset(a); });
+  }
+
+  async function shareAsset(assetId) {
+    if (sharedAssets.has(assetId)) return;
+    sharedAssets.add(assetId); // claim up front so the poll doesn't upload twice
+    try {
+      const buf = S.buffers.get(assetId);
+      const key = await getKey();
+      const base = apiBase();
+      if (!buf || !key || !base) { sharedAssets.delete(assetId); return; }
+      const meta = S.project.assets[assetId] || {};
+      const wav = S.encodeWav(buf); // 16-bit keeps it within the blob size cap
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, wav);
+      const r = await fetch(base + '/blob', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/octet-stream' }, await authHeader()), body: ct });
+      if (!r.ok) throw new Error('upload ' + r.status);
+      const j = await r.json();
+      if (channel) channel.trigger('client-asset', { assetId, name: meta.name || 'audio', duration: meta.duration || buf.duration, blobId: j.id, iv: Array.from(iv, (b) => b.toString(16).padStart(2, '0')).join('') });
+    } catch (e) {
+      sharedAssets.delete(assetId); // let a later poll retry
+      try { console.warn('[collab] shareAsset', e); } catch (_) {}
+    }
+  }
+
+  async function receiveAsset(d) {
+    if (!d || !d.assetId || !d.blobId) return;
+    if (S.buffers.has(d.assetId)) { sharedAssets.add(d.assetId); return; }
+    try {
+      const key = await getKey();
+      const base = apiBase();
+      if (!key || !base) return;
+      const r = await fetch(base + '/blob/' + encodeURIComponent(d.blobId), { headers: await authHeader() });
+      if (!r.ok) throw new Error('download ' + r.status);
+      const ct = await r.arrayBuffer();
+      const wav = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: hexToBytes(d.iv) }, key, ct);
+      const audio = await S.ctx.decodeAudioData(wav.slice(0));
+      S.buffers.set(d.assetId, audio);
+      S.project.assets[d.assetId] = { name: d.name || 'audio', duration: d.duration || audio.duration };
+      sharedAssets.add(d.assetId);
+      // audio now exists — refresh so any clip using it draws its waveform and plays
+      applying = true;
+      try { if (S.refresh && S.refresh.structure) S.refresh.structure(); } catch (e) {}
+      applying = false;
+      S.toast && S.toast('Received “' + (d.name || 'audio') + '” from the session.');
+    } catch (e) { try { console.warn('[collab] receiveAsset', e); } catch (_) {} }
+  }
+
   /* ---- room lifecycle ---- */
   C.startHosting = async () => {
     await ensureClient();
     host = true;
+    roomKey = randomHex(32); cryptoKey = null; sharedAssets.clear();
     const rid = randomId();
     joinChannel(rid);
-    return rid;
+    return { roomId: rid, roomKey };
   };
-  C.join = async (rid) => {
+  C.join = async (rid, rkey) => {
     if (!rid) return;
     if (room === rid && connected) { S.toast && S.toast('You’re already in this session.'); return; }
     await ensureClient();
     host = false;
+    roomKey = rkey || null; cryptoKey = null; sharedAssets.clear();
     joinChannel(rid);
   };
   function teardown() {
     stopStateSync();
     lastSent = '';
+    roomKey = null; cryptoKey = null; sharedAssets.clear();
     try { if (channel && room) client.unsubscribe('presence-sess-' + room); } catch (e) {}
     channel = null; room = null; host = false; connected = false; members = [];
     emit();

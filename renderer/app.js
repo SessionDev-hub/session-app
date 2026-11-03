@@ -100,11 +100,15 @@
     collabTx('play', S.playhead);
   };
 
+  // Setting: on stop, rewind to where playback began (default) or stay where it is now.
+  const stopReturns = () => { try { const v = localStorage.getItem('ps.stopReturns'); return v === null ? true : v === '1'; } catch (e) { return true; } };
+
   S.stopTransport = () => {
     if (S.engine.isRecording) return finishRecording();
     if (S.engine.playing) {
+      const here = S.playhead; // current position while playing
       S.engine.stop();
-      S.playhead = playFrom;
+      S.playhead = stopReturns() ? playFrom : here;
     } else {
       S.playhead = 0;
     }
@@ -112,6 +116,9 @@
     S.timeline.dirty = true;
     collabTx('stop', S.playhead);
   };
+
+  // Jump the playhead back to the very start.
+  S.toStart = () => { S.seek(0); };
 
   S.seek = (t) => {
     S.playhead = t;
@@ -211,9 +218,10 @@
   }
 
   /* ---------- import / files ---------- */
-  async function importFiles(files) {
+  async function importFiles(files, targetIdx) {
     const tracks = S.project.tracks;
-    let idx = Math.max(0, tracks.findIndex((t) => t.arm));
+    // drop onto a track -> that track; otherwise the armed track, else the first
+    let idx = (targetIdx != null && targetIdx >= 0) ? targetIdx : Math.max(0, tracks.findIndex((t) => t.arm));
     for (const f of files) {
       try {
         const buf = await S.ctx.decodeAudioData(await f.arrayBuffer());
@@ -339,7 +347,7 @@
     return res;
   };
 
-  S.importFiles = (files) => importFiles(files);
+  S.importFiles = (files, idx) => importFiles(files, idx);
 
   async function exportSong(format, bitrate) {
     try {
@@ -657,6 +665,7 @@
     $('btn-rec').onclick = () => (S.engine.isRecording ? finishRecording() : startRecording());
     $('btn-play').onclick = () => (S.engine.playing ? S.stopTransport() : S.play());
     $('btn-stop').onclick = () => S.stopTransport();
+    { const h = $('btn-home'); if (h) h.onclick = () => S.toStart(); }
     $('btn-zoom-in').onclick = () => S.timeline.zoom(1.3);
     $('btn-zoom-out').onclick = () => S.timeline.zoom(1 / 1.3);
     $('btn-split').onclick = () => S.timeline.splitSelected();
@@ -726,7 +735,8 @@
         return;
       }
       const files = all.filter((f) => f.type.startsWith('audio/') || /\.(wav|mp3|flac|ogg|m4a|aac)$/i.test(f.name));
-      if (files.length) importFiles(files);
+      const target = S.timeline && S.timeline.trackAtClient ? S.timeline.trackAtClient(e.clientX, e.clientY) : -1;
+      if (files.length) importFiles(files, target);
     });
 
     window.addEventListener('keydown', (e) => {

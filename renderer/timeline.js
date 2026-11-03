@@ -369,6 +369,15 @@
   /* ---------- hit testing ---------- */
   const rowAtY = (y) => Math.floor((y - RULER) / ROW);
 
+  /** Track index under a screen point (for drag-and-drop onto a specific track), or -1. */
+  TL.trackAtClient = (cx, cy) => {
+    if (!canvas) return -1;
+    const r = canvas.getBoundingClientRect();
+    if (cx < r.left || cx > r.right || cy < r.top || cy > r.bottom) return -1;
+    const row = rowAtY(cy - r.top);
+    return row >= 0 && row < S.project.tracks.length ? row : -1;
+  };
+
   function findClip(t, row) {
     const tr = S.project.tracks[row];
     if (!tr) return null;

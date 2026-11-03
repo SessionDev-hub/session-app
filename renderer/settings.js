@@ -240,6 +240,25 @@
         '<div class="param"><label>Output</label><select class="sel" id="set-out"></select><span class="hint" id="set-out-hint">Where Session plays sound.</span></div>';
       body.appendChild(dev);
 
+      // ---- Playback behavior ----
+      const pb = document.createElement('div');
+      pb.className = 'set-pane';
+      pb.innerHTML = '<div class="set-sec-t">Playback</div>';
+      const row = document.createElement('div');
+      row.className = 'su-auto-row';
+      row.innerHTML = '<span class="su-auto-l">Return to start when you stop</span>';
+      const lab = document.createElement('label'); lab.className = 'su-switch';
+      const tog = document.createElement('input'); tog.type = 'checkbox';
+      const srOn = (() => { try { const v = localStorage.getItem('ps.stopReturns'); return v === null ? true : v === '1'; } catch (e) { return true; } })();
+      tog.checked = srOn;
+      const srHint = document.createElement('p'); srHint.className = 'hint';
+      const setHint = () => { srHint.textContent = tog.checked ? 'Pressing stop jumps the playhead back to where playback began.' : 'Pressing stop leaves the playhead where it is.'; };
+      setHint();
+      tog.onchange = () => { try { localStorage.setItem('ps.stopReturns', tog.checked ? '1' : '0'); } catch (e) {} setHint(); };
+      lab.appendChild(tog); lab.appendChild(document.createElement('span'));
+      row.appendChild(lab); pb.appendChild(row); pb.appendChild(srHint);
+      body.appendChild(pb);
+
       const inSel = dev.querySelector('#set-in');
       const outSel = dev.querySelector('#set-out');
       const prefs = audioPrefs.get();
