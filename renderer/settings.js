@@ -27,6 +27,9 @@
     },
   });
 
+  /** Whether to show the "Take aligned…" toast after each recording. Default on. */
+  G.alignToast = () => { try { return localStorage.getItem('ps.alignToast') !== '0'; } catch (e) { return true; } };
+
   /** Push saved audio prefs into the engine. Called at startup and after the audio pane changes them. */
   G.applyAudio = () => {
     if (!S.engine) return;
@@ -257,6 +260,21 @@
       tog.onchange = () => { try { localStorage.setItem('ps.stopReturns', tog.checked ? '1' : '0'); } catch (e) {} setHint(); };
       lab.appendChild(tog); lab.appendChild(document.createElement('span'));
       row.appendChild(lab); pb.appendChild(row); pb.appendChild(srHint);
+
+      // Alignment toast after each recording
+      const row2 = document.createElement('div');
+      row2.className = 'su-auto-row';
+      row2.innerHTML = '<span class="su-auto-l">Show the “Take aligned” note after recording</span>';
+      const lab2 = document.createElement('label'); lab2.className = 'su-switch';
+      const tog2 = document.createElement('input'); tog2.type = 'checkbox';
+      tog2.checked = G.alignToast();
+      const at2Hint = document.createElement('p'); at2Hint.className = 'hint';
+      const setAt2 = () => { at2Hint.textContent = tog2.checked ? 'After a take, Session tells you how far it nudged it for latency.' : 'Takes still align automatically — Session just won’t pop the note.'; };
+      setAt2();
+      tog2.onchange = () => { try { localStorage.setItem('ps.alignToast', tog2.checked ? '1' : '0'); } catch (e) {} setAt2(); };
+      lab2.appendChild(tog2); lab2.appendChild(document.createElement('span'));
+      row2.appendChild(lab2); pb.appendChild(row2); pb.appendChild(at2Hint);
+
       body.appendChild(pb);
 
       const inSel = dev.querySelector('#set-in');

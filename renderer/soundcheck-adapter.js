@@ -214,6 +214,33 @@
         try { const wav = await S.renderMixdown(S.project); await bridge('POST', '/send', { peer, text: '🎧 ' + (S.project.name || 'Mix'), file: { name: (S.project.name || 'mix') + '.wav', b64: S.b64(wav) } }); active = peer; await fetchThread(peer); fire(); }
         catch (e) { S.toast && S.toast(e.message || 'Could not send the mix'); }
       },
+      // Start a live session: send the project + a join invite in one message (room key rides
+      // inside the end-to-end-encrypted message, so the relay never sees it).
+      async startLive(peer) {
+        if (!S.collab || !S.collab.available || !S.collab.available()) return S.toast && S.toast('Live collab isn’t available in this build.');
+        let hosting = false;
+        try {
+          if (S.native && S.native.syncStates) { try { await S.native.syncStates(); } catch (e) {} }
+          const bytes = new TextEncoder().encode(JSON.stringify(S.packProject()));
+          if (!bytes.byteLength) throw new Error('Nothing to send yet.');
+          if (bytes.byteLength > 25 * 1024 * 1024) throw new Error('This session is too big to send (25 MB max).');
+          const r = await S.collab.startHosting();
+          const rid = (r && r.roomId) || r, rkey = (r && r.roomKey) || '';
+          hosting = true;
+          const invite = '🎚️ Live session — open this session, then tap Join. [[live:' + rid + (rkey ? ':' + rkey : '') + ']]';
+          await bridge('POST', '/send', { peer, text: invite, file: { name: (S.project.name || 'session') + '.session', b64: S.b64(bytes) } });
+          active = peer; await fetchThread(peer); fire();
+          S.toast && S.toast('Live session started — invite sent.');
+        } catch (e) {
+          if (hosting) { try { S.collab.leave && S.collab.leave(); } catch (_) {} }
+          S.toast && S.toast(e.message || 'Could not start a live session');
+        }
+      },
+      async joinLive(room, key) {
+        if (!S.collab || !S.collab.join) return S.toast && S.toast('Live collab isn’t available in this build.');
+        try { await S.collab.join(room, key || ''); SC.close(); }
+        catch (e) { S.toast && S.toast(e.message || 'Could not join the live session'); }
+      },
       async openFile(peer, msg) {
         const name = (msg.payload && msg.payload.file && msg.payload.file.name) || 'file';
         const isProj = /\.(session|pstudio)$/i.test(name);

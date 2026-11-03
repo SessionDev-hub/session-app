@@ -2,6 +2,22 @@
  * "What's new" popup after updating, and the list appears in Settings -> About. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.24.7',
+    date: '2026-11-03',
+    changes: [
+      'Smoother everywhere: importing or dragging a beat no longer freezes — waveforms are now drawn off the main thread, so big files load without a hitch.',
+      'Stopping a recording is instant now — no more hang when a take lands.',
+      'New setting (Settings → Audio → Playback): turn the “Take aligned” note on or off after recording.',
+    ],
+  },
+  {
+    version: '0.24.6',
+    date: '2026-11-03',
+    changes: [
+      'Soundcheck: start a live session straight from a chat again — the 🎧 button is back in the message bar, and live invites now show a Join button you can tap to jump in.',
+    ],
+  },
+  {
     version: '0.24.5',
     date: '2026-11-03',
     changes: [

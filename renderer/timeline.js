@@ -50,30 +50,66 @@
     TL.dirty = true;
   }
 
-  /* ---------- waveform peak cache ---------- */
+  /* ---------- waveform peak cache ----------
+   * Peaks are computed once per buffer and cached. For big imports (a full beat), the scan is many
+   * millions of samples, so we hand it to a Web Worker and draw the clip without its waveform until
+   * the peaks arrive — the UI never freezes. Short takes are scanned inline (instant, no flicker). */
   const peakCache = new WeakMap();
-  function peaksFor(buf) {
-    let p = peakCache.get(buf);
-    if (p) return p;
+  const peakPending = new WeakMap();
+  const peakJobs = new Map(); // request id -> buffer
+  let peakWorker, peakSeq = 0;
+  const WORKER_MIN = 400000; // ~8 s mono @48k; below this, inline is cheaper than a round-trip
+
+  function peakWorkerInstance() {
+    if (peakWorker !== undefined) return peakWorker; // null means "unavailable, use inline"
+    try {
+      const src =
+        'onmessage=function(e){var d=e.data.data,b=e.data.block,id=e.data.id;' +
+        'var n=Math.ceil(d.length/b),mn=new Float32Array(n),mx=new Float32Array(n);' +
+        'for(var i=0;i<n;i++){var lo=1,hi=-1,end=Math.min(d.length,(i+1)*b);' +
+        'for(var k=i*b;k<end;k++){var v=d[k];if(v<lo)lo=v;if(v>hi)hi=v;}mn[i]=lo;mx[i]=hi;}' +
+        'postMessage({id:id,min:mn,max:mx},[mn.buffer,mx.buffer]);};';
+      const w = new Worker(URL.createObjectURL(new Blob([src], { type: 'application/javascript' })));
+      w.onmessage = (e) => {
+        const buf = peakJobs.get(e.data.id);
+        peakJobs.delete(e.data.id);
+        if (buf) { peakCache.set(buf, { min: e.data.min, max: e.data.max, sr: buf.sampleRate }); peakPending.delete(buf); TL.dirty = true; }
+      };
+      peakWorker = w;
+    } catch (e) { peakWorker = null; }
+    return peakWorker;
+  }
+
+  function peaksInline(buf) {
     const data = buf.getChannelData(0);
     const n = Math.ceil(data.length / BLOCK);
-    const min = new Float32Array(n);
-    const max = new Float32Array(n);
+    const min = new Float32Array(n), max = new Float32Array(n);
     for (let i = 0; i < n; i++) {
-      let lo = 1;
-      let hi = -1;
+      let lo = 1, hi = -1;
       const end = Math.min(data.length, (i + 1) * BLOCK);
-      for (let k = i * BLOCK; k < end; k++) {
-        const v = data[k];
-        if (v < lo) lo = v;
-        if (v > hi) hi = v;
-      }
-      min[i] = lo;
-      max[i] = hi;
+      for (let k = i * BLOCK; k < end; k++) { const v = data[k]; if (v < lo) lo = v; if (v > hi) hi = v; }
+      min[i] = lo; max[i] = hi;
     }
-    p = { min, max, sr: buf.sampleRate };
+    const p = { min, max, sr: buf.sampleRate };
     peakCache.set(buf, p);
     return p;
+  }
+
+  function peaksFor(buf) {
+    const cached = peakCache.get(buf);
+    if (cached) return cached;
+    const w = peakWorkerInstance();
+    if (!w || buf.length <= WORKER_MIN) return peaksInline(buf); // small/no-worker: inline
+    if (!peakPending.get(buf)) {
+      peakPending.set(buf, true);
+      const id = ++peakSeq;
+      peakJobs.set(id, buf);
+      let copy;
+      try { copy = buf.getChannelData(0).slice(); } catch (e) { return peaksInline(buf); } // copy so we never detach the live buffer
+      try { w.postMessage({ id, block: BLOCK, data: copy }, [copy.buffer]); }
+      catch (e) { peakPending.delete(buf); peakJobs.delete(id); return peaksInline(buf); }
+    }
+    return null; // not ready yet — caller draws the clip without its waveform this frame
   }
 
   /* ---------- init ---------- */
@@ -1130,8 +1166,8 @@
 
     // waveform (mirrored, filled)
     const buf = S.buffers.get(c.asset);
-    if (buf) {
-      const pk = peaksFor(buf);
+    const pk = buf ? peaksFor(buf) : null; // null = peaks still computing in the worker
+    if (buf && pk) {
       const mid = top + HEAD_H + (CLIP_H - HEAD_H) / 2;
       const amp = (CLIP_H - HEAD_H - 8) / 2;
       const from = Math.max(0, Math.floor(-x0));

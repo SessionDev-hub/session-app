@@ -172,11 +172,14 @@
     if (S.recordMode !== 'layer' && !silent) clearSpan(S.project.tracks[idx], clip.start, clip.start + clip.dur, clip.id);
     S.timeline.selected = clip.id;
     S.playhead = clip.start + clip.dur;
+    // A take only adds a clip to an existing track — the audio graph didn't change, so skip the
+    // full engine.sync + mixer/header rebuild (that's what made stopping a recording hitch). Just
+    // redraw the timeline. (resize() recomputes the canvas and marks it dirty.)
     S.timeline.resize();
-    S.refresh.structure();
     S.tools.afterContent();
     // No mic activity: don't pretend a take exists and line it up to the beat. Warn, and offer a redo.
     if (silent) return warnNoMicActivity(idx, clip);
+    if (S.settings && S.settings.alignToast && !S.settings.alignToast()) return; // toast turned off in Settings
     const ms = Math.round((res.compensation - res.startShift) * 1000);
     S.toast('Take aligned: shifted ' + ms + ' ms earlier (' + (S.engine.calibrated != null ? 'measured' : 'estimated') + ' latency). Late or early? ' + (document.documentElement.classList.contains('platform-mobile') ? 'Long-press the take and choose Nudge.' : 'Use [ and ] to nudge it.'));
   }
@@ -221,6 +224,7 @@
   /* ---------- import / files ---------- */
   async function importFiles(files, targetIdx) {
     const tracks = S.project.tracks;
+    const startCount = tracks.length;
     // drop onto a track -> that track; otherwise the armed track, else the first
     let idx = (targetIdx != null && targetIdx >= 0) ? targetIdx : Math.max(0, tracks.findIndex((t) => t.arm));
     for (const f of files) {
@@ -234,7 +238,9 @@
         S.toast('Could not read ' + f.name);
       }
     }
-    S.refresh.structure();
+    // Only do the full engine/mixer rebuild if we actually added tracks. Dropping a beat onto an
+    // existing track just adds a clip — redraw the timeline (waveforms compute off-thread).
+    if (S.project.tracks.length !== startCount) S.refresh.structure();
     S.timeline.resize();
     S.tools.afterContent();
   }

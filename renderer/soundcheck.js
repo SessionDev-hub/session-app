@@ -129,13 +129,14 @@
     m.text = h('textarea', { rows: 1, placeholder: 'Message', onkeydown: (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }, oninput: () => api.typing && st.peer && api.typing(st.peer) });
     const attach = api.attachFile ? btn('📎', () => st.peer && api.attachFile(st.peer), 'sm', 'Attach a file (up to 25 MB)') : null;
     const song = api.shareSong ? btn('♫', () => st.peer && api.shareSong(st.peer), 'sm', 'Share a song') : null;
+    const live = api.startLive ? btn('🎧', () => st.peer && api.startLive(st.peer), 'sm', 'Start a live session — build this track together in real time') : null;
     pages.Messages.append(
       h('div', { class: 'sk-side' },
         h('div', { style: 'display:flex;align-items:center;justify-content:space-between' },
           h('b', { style: 'font-size:16px', text: 'Chats' }), api.newGroup ? btn('＋ Group', () => api.newGroup(), 'tinted sm') : null),
         h('div', { style: 'margin-top:8px' }, m.filter), m.list),
       h('div', { class: 'sk-chat' }, m.head, m.thread, m.typing,
-        h('div', { class: 'sk-compose' }, h('div', { class: 'sk-box' }, attach, song, m.text), btn('Send', send, 'accent'))));
+        h('div', { class: 'sk-compose' }, h('div', { class: 'sk-box' }, attach, song, live, m.text), btn('Send', send, 'accent'))));
 
     // ---------------------------------------------------------------- navigation
     function show(page, opts = {}) {
@@ -304,11 +305,25 @@
         if (msg.event) { m.thread.append(h('div', { class: 'sk-day', text: msg.event })); continue; }
         const mine = msg.from === me;
         const p = msg.payload || {};
+        const time = new Date(msg.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + (mine && msg.seen ? '  · Seen' : '');
+        // Live-session invite ( [[live:room:key]] embedded in the text ): show a Join button.
+        const liveM = p.text && p.text.match(/\[\[live:([a-z0-9]+)(?::([a-z0-9]+))?\]\]/i);
+        if (liveM) {
+          const invite = h('div', { class: 'sk-bubble' + (mine ? ' mine' : '') },
+            group && !mine ? h('div', { class: 'sk-who', text: api.nameOf ? api.nameOf(msg.from) : '' }) : null,
+            h('div', { style: 'font-weight:700', text: '🎚️ Live session' }),
+            mine ? h('div', { class: 'sk-muted', style: 'font-size:11px', text: 'invite sent' })
+              : (api.joinLive ? btn('Join', () => api.joinLive(liveM[1], liveM[2] || ''), 'accent sm')
+                : h('div', { class: 'sk-muted', style: 'font-size:11px', text: 'Open in Session to join' })),
+            h('div', { class: 'sk-time', text: time }));
+          m.thread.append(invite);
+          continue;
+        }
         const body = p.text || (p.file ? `📎 ${p.file.name}` : '♫ ' + ((p.song || {}).title || 'Shared a song'));
         const bubble = h('div', { class: 'sk-bubble' + (mine ? ' mine' : '') },
           group && !mine ? h('div', { class: 'sk-who', text: api.nameOf ? api.nameOf(msg.from) : '' }) : null,
           h('div', { text: body }),
-          h('div', { class: 'sk-time', text: new Date(msg.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + (mine && msg.seen ? '  · Seen' : '') }));
+          h('div', { class: 'sk-time', text: time }));
         if (p.file && api.openFile) bubble.addEventListener('click', () => api.openFile(st.peer, msg));
         m.thread.append(bubble);
       }
