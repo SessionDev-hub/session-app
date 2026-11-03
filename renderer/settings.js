@@ -438,6 +438,34 @@
       }
       body.appendChild(up);
 
+      // Discord Rich Presence (only when the desktop app can talk to Discord)
+      if (S.presence && window.studioHost && window.studioHost.setPresence) {
+        const dc = document.createElement('div');
+        dc.className = 'set-pane';
+        dc.innerHTML = '<div class="set-sec-t">Discord</div>';
+        const hint = document.createElement('p');
+        hint.className = 'hint';
+        hint.textContent = S.presence.enabled()
+          ? 'Your Discord shows “Playing Session” and what you’re working on while Session is open.'
+          : 'Rich Presence is off — your Discord won’t show that you’re in Session.';
+        const row = document.createElement('label');
+        row.className = 'param su-auto';
+        row.innerHTML = '<span class="su-auto-l">Show Session on Discord</span>';
+        const tog = document.createElement('input');
+        tog.type = 'checkbox';
+        tog.className = 'su-switch';
+        tog.checked = S.presence.enabled();
+        tog.onchange = () => {
+          S.presence.setEnabled(tog.checked);
+          hint.textContent = tog.checked
+            ? 'Your Discord shows “Playing Session” and what you’re working on while Session is open.'
+            : 'Rich Presence is off — your Discord won’t show that you’re in Session.';
+        };
+        row.appendChild(tog);
+        dc.append(hint, row);
+        body.appendChild(dc);
+      }
+
       // Patch notes
       const notes = notesList();
       if (notes.length) {

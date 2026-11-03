@@ -763,12 +763,14 @@
     if (S.settings) { S.settings.init(); S.settings.checkWhatsNew(); }
     if (S.vault) S.vault.init();
     if (S.messages) S.messages.init(); // repoints the Vault button to the Messages panel
+    if (S.soundcheck) S.soundcheck.init(); // Soundcheck takes over the button as the friends home
     if (S.match) S.match.init();
     if (S.sounds) S.sounds.init();
     if (S.sessions) S.sessions.init();
     if (S.tuner) S.tuner.init();
     if (S.metronome) S.metronome.init();
     if (S.collab) S.collab.init();
+    if (S.presence) S.presence.init();
     if (S.updates) S.updates.init();
     initGridControls();
     initMixerPanel();

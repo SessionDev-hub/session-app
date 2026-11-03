@@ -79,4 +79,11 @@ try {
   fs.rmSync(bak, { recursive: true, force: true });
   console.log('Source restored.');
 }
+
+// After a successful publish, post the version's patch notes to Discord (no-op if no webhook set).
+if (code === 0 && publish === 'always') {
+  try { cp.execSync('node ' + JSON.stringify(path.join(__dirname, 'post-release-notes.js')), { stdio: 'inherit', env }); }
+  catch (e) { console.error('Could not post release notes to Discord:', e.message); }
+}
+
 process.exit(code);

@@ -25,6 +25,9 @@ contextBridge.exposeInMainWorld('studioHost', {
   vaultLaunch: (opts) => ipcRenderer.invoke('vault:launch', opts),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
   discordLogin: (opts) => ipcRenderer.invoke('discord:login', opts),
+  // Discord Rich Presence (shows "Playing Session" on the user's Discord)
+  setPresence: (activity) => ipcRenderer.invoke('discord:presence:set', activity),
+  clearPresence: () => ipcRenderer.invoke('discord:presence:clear'),
   // auto-update (Windows installed app)
   onUpdate: (cb) => ipcRenderer.on('update:event', (_e, m) => cb(m)),
   updateInstall: () => ipcRenderer.invoke('update:install'),

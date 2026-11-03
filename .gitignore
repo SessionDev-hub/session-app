@@ -3,6 +3,8 @@ bin/*
 !bin/ps-host.exe
 node_modules/
 dist/
+release-webhook.txt
+updates.config.local.json
 installer/
 www/
 *.jks

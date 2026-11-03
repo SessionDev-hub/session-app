@@ -28,7 +28,7 @@
   C.isHost = () => host;
   C.members = () => members.slice();
   C.onChange = (fn) => { listeners.add(fn); return () => listeners.delete(fn); };
-  const emit = () => { listeners.forEach((fn) => { try { fn(); } catch (e) {} }); if (S.collabBar) S.collabBar.render(); };
+  const emit = () => { listeners.forEach((fn) => { try { fn(); } catch (e) {} }); if (S.collabBar) S.collabBar.render(); try { S.emit && S.emit('collab-changed'); } catch (e) {} };
 
   function randomId() {
     try { const a = new Uint8Array(8); crypto.getRandomValues(a); return Array.from(a, (b) => b.toString(16).padStart(2, '0')).join(''); }

@@ -5,8 +5,17 @@ const { pathToFileURL, fileURLToPath } = require('url');
 const { HostBridge } = require('./native/bridge');
 const vault = require('./native/vault');
 const updates = require('./native/updates');
+const { DiscordRPC } = require('./native/discord-rpc');
 
 let mainWin = null;
+
+// Baked config (GitHub + Discord app settings). Read once; same file gen-config.js reads.
+let _cfg = null;
+function appConfig() {
+  if (_cfg) return _cfg;
+  try { _cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'updates.config.json'), 'utf8')); } catch (e) { _cfg = {}; }
+  return _cfg;
+}
 let bridge = null;
 let bridgeStarting = null;
 
@@ -81,7 +90,7 @@ ipcMain.on('native:audio', (e, data) => {
   const b = asBuffer(data);
   if (b && b.length >= 12 && b.length < 1024 * 1024) bridge.sendAudio(b);
 });
-app.on('before-quit', () => bridge && bridge.stop());
+app.on('before-quit', () => { if (bridge) bridge.stop(); if (rpc) try { rpc.destroy(); } catch (e) {} });
 
 function userPluginDir() {
   const dir = path.join(app.getPath('userData'), 'plugins');
@@ -153,45 +162,125 @@ async function discordMember(token, guildId) {
   return { inGuild: true, roles: Array.isArray(m.roles) ? m.roles : [] };
 }
 
+/* Sign in with Discord, WITHOUT the authorize screen on repeat launches.
+ * We try a silent pass first (prompt=none) in a hidden window: if the user has already approved
+ * Session, Discord redirects straight back with a token and they never see anything. Only when
+ * Discord says interaction is actually needed (first time, or they're logged out) do we show the
+ * window and ask for consent once. Either way we still read their guild roles to gate the Beta. */
+const NEEDS_INTERACTION = /^(consent_required|interaction_required|login_required|account_selection_required)$/;
+
 ipcMain.handle('discord:login', (_e, { clientId, redirect, guildId }) => {
   return new Promise((resolve) => {
     if (!clientId) return resolve({ ok: false, error: 'No Discord Client ID is set yet.' });
     const redir = redirect || 'http://localhost/session-oauth';
-    const state = Math.random().toString(36).slice(2);
     const scope = guildId ? 'identify guilds.members.read' : 'identify';
-    const authUrl =
+    const buildUrl = (prompt) =>
       'https://discord.com/oauth2/authorize?response_type=token&client_id=' + encodeURIComponent(clientId) +
-      '&scope=' + encodeURIComponent(scope) + '&redirect_uri=' + encodeURIComponent(redir) + '&state=' + state;
+      '&scope=' + encodeURIComponent(scope) + '&redirect_uri=' + encodeURIComponent(redir) +
+      '&state=' + Math.random().toString(36).slice(2) + (prompt ? '&prompt=' + prompt : '');
+
     const win = new BrowserWindow({
       width: 520, height: 760, title: 'Sign in with Discord', autoHideMenuBar: true,
       parent: mainWin || undefined, modal: false,
+      show: false, // stay invisible during the silent pass; only shown if consent is really needed
       webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true },
     });
-    let done = false;
+
+    let done = false, interactive = false, revealTimer = null;
     const finish = (res) => {
       if (done) return;
       done = true;
+      if (revealTimer) { clearTimeout(revealTimer); revealTimer = null; }
       try { if (!win.isDestroyed()) win.close(); } catch (e) {}
       resolve(res);
     };
+    const reveal = () => { // bring the window forward so the user can complete sign-in
+      if (done || interactive) return;
+      interactive = true;
+      if (revealTimer) { clearTimeout(revealTimer); revealTimer = null; }
+      try { if (!win.isDestroyed()) { win.show(); win.focus(); win.loadURL(buildUrl('consent')); } } catch (e) {}
+    };
+
     const handle = (navUrl) => {
       if (!navUrl || navUrl.indexOf(redir) !== 0) return false;
       const frag = navUrl.split('#')[1] || navUrl.split('?')[1] || '';
       const q = new URLSearchParams(frag);
       const token = q.get('access_token');
-      if (token)
+      if (token) {
         Promise.all([discordProfile(token), discordMember(token, guildId)])
           .then(([p, mem]) => finish({ ok: true, profile: p, inGuild: mem.inGuild, roles: mem.roles, token: token }))
           .catch((e) => finish({ ok: false, error: String(e.message || e) }));
-      else finish({ ok: false, error: q.get('error_description') || q.get('error') || 'Sign-in was not completed.' });
+        return true;
+      }
+      const err = q.get('error') || '';
+      // Silent pass bounced because the user must act — switch to a visible consent prompt once.
+      if (!interactive && NEEDS_INTERACTION.test(err)) { reveal(); return true; }
+      finish({ ok: false, error: q.get('error_description') || err || 'Sign-in was not completed.' });
       return true;
     };
+
     win.webContents.on('will-redirect', (e, u) => { if (handle(u)) e.preventDefault(); });
     win.webContents.on('will-navigate', (e, u) => { if (handle(u)) e.preventDefault(); });
+    // If Discord shows its own login/authorize page (not a redirect) during the silent pass,
+    // that means interaction is needed — reveal the window so the user isn't stuck on a hidden one.
+    win.webContents.on('did-stop-loading', () => {
+      if (done || interactive) return;
+      let u = ''; try { u = win.webContents.getURL(); } catch (e) {}
+      // Reveal only if Discord sat us on its login page (user is logged out). The authorize URL is
+      // the one we loaded for the silent pass; consent_required comes back as an error redirect
+      // (handled above), so neither should reveal here.
+      if (/^https:\/\/discord\.com\/login/.test(u)) reveal();
+    });
     win.on('closed', () => finish({ ok: false, error: 'cancelled' }));
-    win.loadURL(authUrl);
+
+    // Backstop: if the silent pass neither redirects nor errors within a few seconds, show the window.
+    revealTimer = setTimeout(reveal, 4000);
+    win.loadURL(buildUrl('none'));
   });
 });
+
+/* ---------- Discord Rich Presence (local IPC, no bot token) ---------- */
+let rpc = null;
+function ensureRpc() {
+  if (rpc) return rpc;
+  const clientId = (appConfig().discord || {}).clientId;
+  if (!clientId) return null;
+  rpc = new DiscordRPC(clientId);
+  return rpc;
+}
+// Renderer sends the activity it wants shown (or null to clear). Only the app window may drive it.
+ipcMain.handle('discord:presence:set', (e, activity) => {
+  if (!fromApp(e)) return { ok: false };
+  const r = ensureRpc();
+  if (!r) return { ok: false };
+  try { activity ? r.setActivity(sanitizeActivity(activity)) : r.clear(); return { ok: true }; }
+  catch (err) { return { ok: false, error: String(err.message || err) }; }
+});
+ipcMain.handle('discord:presence:clear', (e) => {
+  if (!fromApp(e)) return { ok: false };
+  if (rpc) try { rpc.clear(); } catch (err) {}
+  return { ok: true };
+});
+// Keep only the fields Discord accepts, and cap string lengths so a long status can't be rejected.
+function sanitizeActivity(a) {
+  const cut = (s, n) => (typeof s === 'string' ? s.slice(0, n) : undefined);
+  const out = {};
+  if (a.details) out.details = cut(a.details, 128);
+  if (a.state) out.state = cut(a.state, 128);
+  if (a.startTimestamp) out.timestamps = { start: Math.floor(Number(a.startTimestamp)) };
+  const assets = {};
+  if (a.largeImageKey) assets.large_image = cut(a.largeImageKey, 256);
+  if (a.largeImageText) assets.large_text = cut(a.largeImageText, 128);
+  if (a.smallImageKey) assets.small_image = cut(a.smallImageKey, 256);
+  if (a.smallImageText) assets.small_text = cut(a.smallImageText, 128);
+  if (Object.keys(assets).length) out.assets = assets;
+  if (Array.isArray(a.buttons)) {
+    const b = a.buttons.filter((x) => x && x.label && /^https?:\/\//i.test(x.url || '')).slice(0, 2)
+      .map((x) => ({ label: cut(x.label, 32), url: x.url }));
+    if (b.length) out.buttons = b;
+  }
+  return out;
+}
 
 ipcMain.handle('plugins:list', () => [
   ...listJs(path.join(__dirname, 'plugins')),

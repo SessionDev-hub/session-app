@@ -2,6 +2,15 @@
  * "What's new" popup after updating, and the list appears in Settings -> About. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.24.0',
+    date: '2026-11-03',
+    changes: [
+      'Soundcheck: the new friends home — Home, Messages, Friends, Discover and Profile in one place, the same as The Vault. The Messages button now opens Soundcheck.',
+      'Discord Rich Presence: while Session is open your Discord shows “Playing Session” and what you’re working on. Turn it off in Settings → About → Discord.',
+      'Signing in is now seamless: if you’ve already approved Session, the Discord screen no longer pops up — it only appears the first time or when you need to sign in. Beta access is still checked every launch.',
+    ],
+  },
+  {
     version: '0.23.0',
     date: '2026-11-03',
     changes: [
