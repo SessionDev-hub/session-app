@@ -2,6 +2,27 @@
  * "What's new" popup after updating, and the list appears in Settings -> About. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.22.0',
+    date: '2026-11-03',
+    changes: [
+      'Chain presets: save EVERY effect on a track (all plugins + settings) as one named preset and load it onto any track — like BandLab. Use the “Chain presets” button on a mixer strip, or right-click a track.',
+    ],
+  },
+  {
+    version: '0.21.2',
+    date: '2026-11-03',
+    changes: [
+      'Saving your own effect presets is now easy to find: a Save button in the plugin window, plus “Save current as preset…” and “Delete this preset” right in the preset menu.',
+    ],
+  },
+  {
+    version: '0.21.1',
+    date: '2026-11-03',
+    changes: [
+      'Auto-Tune sounds cleaner: in-tune notes, held notes and consonants no longer get a hollow/phasey colouring, and it no longer warbles between notes when you slide.',
+    ],
+  },
+  {
     version: '0.21.0',
     date: '2026-11-03',
     changes: [

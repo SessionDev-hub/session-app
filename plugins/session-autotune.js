@@ -43,6 +43,7 @@
         this.dfill = 0;                // samples written into det so far
         this.f0 = 0;                   // last detected pitch (Hz)
         this.note = -1;                // last snapped MIDI note, for the UI
+        this.heldNote = -1;            // note we're currently snapped to (for hysteresis)
         this.cents = 0;
         this.rep = 0;
         this.tauMin = 32;              // ~1378 Hz
@@ -88,9 +89,13 @@
         for (let cand = Math.floor(midi) - 2; cand <= Math.ceil(midi) + 2; cand++) {
           const pc = (((cand - keyIdx) % 12) + 12) % 12;
           if (scale.indexOf(pc) < 0) continue;
-          const dist = Math.abs(midi - cand);
+          let dist = Math.abs(midi - cand);
+          // hysteresis: hold the current note until the voice moves well past the boundary,
+          // so sliding between two scale notes doesn't chatter back and forth (warble)
+          if (cand === this.heldNote) dist -= 0.35;
           if (dist < bestDist) { bestDist = dist; best = cand; }
         }
+        this.heldNote = best;
         const targetF0 = 440 * Math.pow(2, (best - 69) / 12);
         this.note = best;
         this.cents = Math.round(1200 * Math.log2(targetF0 / f0));
@@ -135,8 +140,13 @@
           const win2 = 0.5 - 0.5 * Math.cos((2 * Math.PI * d2) / G);
           const wetL = this.tap(this.ringL, this.w, this.delay, win1) + this.tap(this.ringL, this.w, d2, win2);
           const wetR = outR ? this.tap(this.ringR, this.w, this.delay, win1) + this.tap(this.ringR, this.w, d2, win2) : 0;
-          outL[i] = (dryL * (1 - mix) + wetL * mix) * outG;
-          if (outR) outR[i] = (dryR * (1 - mix) + wetR * mix) * outG;
+          // When almost no shift is needed (ratio ≈ 1) the delay stops moving and the two grain
+          // taps become a static comb — which colours in-tune/held/unvoiced audio. Fade the wet
+          // to dry across the last ~5 cents so those parts stay clean; real corrections are full wet.
+          const corr = Math.min(1, Math.abs(1 - this.p) / 0.003);
+          const w = mix * corr;
+          outL[i] = (dryL * (1 - w) + wetL * w) * outG;
+          if (outR) outR[i] = (dryR * (1 - w) + wetR * w) * outG;
           this.w = (this.w + 1) % RING;
         }
         // tell the UI the current note, a few times a second

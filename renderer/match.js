@@ -233,6 +233,11 @@
   /** Right-click track menu: apply a saved preset, open Match, or change colour. */
   M.trackMenu = (track, x, y) => {
     const items = [];
+    // whole-track effect-chain presets (save/load every plugin on the track at once)
+    if (S.chainPresets && S.chainPresets.menuItems) {
+      items.push(...S.chainPresets.menuItems(track));
+      items.push({ sep: true });
+    }
     const list = M.presets.all();
     if (list.length) {
       list.forEach((p) => {

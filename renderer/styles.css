@@ -840,3 +840,6 @@ main.mdock-right.mv-mixer #mix-panel { width: auto; flex: 1; }
 .panelrow { min-height: 46px; align-items: center; }
 .tabpanel { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; width: 100%; }
 .tabpanel[hidden] { display: none; }
+
+.s-chains { width: 100%; margin-top: 4px; font-size: 11px; opacity: .9; }
+.s-chains:hover { opacity: 1; }

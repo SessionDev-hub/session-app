@@ -124,6 +124,16 @@
     // effect inserts (same chain as the track header)
     el.appendChild(U.fxChain(isMaster ? p.master.fx : track.fx, isMaster ? null : track));
 
+    // save / load the track's whole effect chain as a preset (like BandLab's track presets)
+    if (!isMaster && S.chainPresets) {
+      const cp = document.createElement('button');
+      cp.className = 'btn ghost sm s-chains';
+      cp.textContent = 'Chain presets ▾';
+      cp.title = 'Save all effects on this track as a preset, or load a saved chain';
+      cp.onclick = () => { const r = cp.getBoundingClientRect(); S.clips.menu(r.left, r.bottom + 4, S.chainPresets.menuItems(track)); };
+      el.appendChild(cp);
+    }
+
     if (!isMaster) el.appendChild(panKnob(track));
 
     // fader + scale + stereo meter

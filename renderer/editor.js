@@ -989,10 +989,14 @@
         presetSel.appendChild(opt(null, '─ your presets ─', true));
         user.forEach((p, i) => presetSel.appendChild(opt(String(builtin.length + i), '★ ' + p.name)));
       }
+      // BandLab-style actions right in the menu, so they're easy to find
+      presetSel.appendChild(opt(null, '──────────', true));
+      presetSel.appendChild(opt('__save', '＋  Save current as preset…'));
+      if (user.length) presetSel.appendChild(opt('__del', '🗑  Delete this preset'));
       if (selIdx != null) presetSel.value = String(selIdx);
     }
     rebuildPresetSel();
-    const saveB = el('button', 'pw-ib', S.ui.icon('save', 13));
+    const saveB = el('button', 'btn ghost sm pw-savebtn', 'Save');
     saveB.title = 'Save these settings as your own preset';
     const delB = el('button', 'pw-ib', S.ui.icon('trash', 13));
     delB.title = 'Delete the selected preset (your own presets only)';
@@ -1127,21 +1131,11 @@
       presetSel.value = String(i);
       st.controls.forEach((c) => c.draw());
     }
-    presetSel.onchange = () => presetSel.value !== '-1' && loadPreset(+presetSel.value);
-    const stepPreset = (d) => {
-      const cur = +presetSel.value;
-      loadPreset(((cur < 0 ? (d > 0 ? -1 : 0) : cur) + d + presets.length) % presets.length);
-    };
-    prevB.onclick = () => stepPreset(-1);
-    nextB.onclick = () => stepPreset(1);
-    const pi = presets.findIndex((p) => p.name === fx.preset);
-    presetSel.value = String(pi);
-
     // save the current knob positions as a named preset (overwrites one of the same name)
-    saveB.onclick = async () => {
-      const curName = (+presetSel.value >= 0 && presets[+presetSel.value]) ? presets[+presetSel.value].name : '';
-      const name = (await S.askText('Name this preset', { value: curName || 'My preset', placeholder: 'e.g. My vocal chain' }) || '').trim();
-      if (!name) return;
+    async function saveAction() {
+      const cur = st.fx.preset || '';
+      const name = (await S.askText('Name this preset', { value: cur || 'My preset', placeholder: 'e.g. My vocal chain' }) || '').trim();
+      if (!name) { rebuildPresetSel(sel()); return; }
       const user = readUser();
       const entry = { name: name, params: S.defaultParams(def, st.fx.params) };
       const ix = user.findIndex((p) => p.name.toLowerCase() === name.toLowerCase());
@@ -1150,16 +1144,35 @@
       rebuildPresetSel(builtin.length + readUser().findIndex((p) => p.name === name));
       st.fx.preset = name;
       if (S.toast) S.toast('Preset saved: ' + name);
-    };
-    delB.onclick = () => {
-      const v = +presetSel.value;
-      if (!(v >= builtin.length) || !presets[v]) { if (S.toast) S.toast('Pick one of your own presets to delete.'); return; }
-      const name = presets[v].name;
-      writeUser(readUser().filter((p) => p.name !== name));
+    }
+    function deleteAction() {
+      const name = st.fx.preset;
+      const user = readUser();
+      if (!name || !user.some((p) => p.name === name)) { if (S.toast) S.toast('Load one of your own presets first, then Delete.'); rebuildPresetSel(sel()); return; }
+      writeUser(user.filter((p) => p.name !== name));
       rebuildPresetSel(-1);
       markCustom();
       if (S.toast) S.toast('Deleted preset: ' + name);
+    }
+    const sel = () => { const v = +presetSel.value; return v >= 0 && presets[v] ? v : -1; };
+
+    presetSel.onchange = () => {
+      const v = presetSel.value;
+      if (v === '__save') return saveAction();
+      if (v === '__del') return deleteAction();
+      if (v !== '-1') loadPreset(+v);
     };
+    const stepPreset = (d) => {
+      const cur = +presetSel.value;
+      const n = builtin.length + readUser().length;
+      loadPreset(((cur < 0 ? (d > 0 ? -1 : 0) : cur) + d + n) % n);
+    };
+    prevB.onclick = () => stepPreset(-1);
+    nextB.onclick = () => stepPreset(1);
+    const pi = presets.findIndex((p) => p.name === fx.preset);
+    presetSel.value = String(pi >= 0 ? pi : -1);
+    saveB.onclick = saveAction;
+    delB.onclick = deleteAction;
 
     const syncBypass = () => {
       bypassB.classList.toggle('off', !!st.fx.bypass);
