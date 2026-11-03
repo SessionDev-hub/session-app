@@ -972,10 +972,31 @@
     nextB.innerHTML = '›';
     nextB.title = 'Next preset';
     const presetSel = el('select', 'pw-preset');
-    const presets = def.presets && def.presets.length ? def.presets : [{ name: 'Default', params: {} }];
-    presetSel.innerHTML = '<option value="-1">Custom</option>' + presets.map((p, i) => '<option value="' + i + '"></option>').join('');
-    presets.forEach((p, i) => (presetSel.options[i + 1].textContent = p.name));
-    presetBox.append(prevB, presetSel, nextB);
+    const builtin = def.presets && def.presets.length ? def.presets.slice() : [{ name: 'Default', params: {} }];
+    let presets = builtin.slice();
+    // user presets live per plugin id, so they show up for this effect everywhere
+    const PK = 'ps.fxPresets.' + def.id;
+    const readUser = () => { try { return JSON.parse(localStorage.getItem(PK)) || []; } catch (e) { return []; } };
+    const writeUser = (list) => { try { localStorage.setItem(PK, JSON.stringify(list)); } catch (e) {} };
+    const opt = (val, label, dis) => { const o = document.createElement('option'); if (val != null) o.value = val; o.textContent = label; if (dis) o.disabled = true; return o; };
+    function rebuildPresetSel(selIdx) {
+      const user = readUser();
+      presets = builtin.concat(user);
+      presetSel.innerHTML = '';
+      presetSel.appendChild(opt('-1', 'Custom'));
+      builtin.forEach((p, i) => presetSel.appendChild(opt(String(i), p.name)));
+      if (user.length) {
+        presetSel.appendChild(opt(null, '─ your presets ─', true));
+        user.forEach((p, i) => presetSel.appendChild(opt(String(builtin.length + i), '★ ' + p.name)));
+      }
+      if (selIdx != null) presetSel.value = String(selIdx);
+    }
+    rebuildPresetSel();
+    const saveB = el('button', 'pw-ib', S.ui.icon('save', 13));
+    saveB.title = 'Save these settings as your own preset';
+    const delB = el('button', 'pw-ib', S.ui.icon('trash', 13));
+    delB.title = 'Delete the selected preset (your own presets only)';
+    presetBox.append(prevB, presetSel, nextB, saveB, delB);
     const bypassB = el('button', 'pw-ib pw-power', S.ui.icon('power', 14));
     const resetB = el('button', 'pw-ib', '↺');
     resetB.title = 'Reset all controls';
@@ -1115,6 +1136,30 @@
     nextB.onclick = () => stepPreset(1);
     const pi = presets.findIndex((p) => p.name === fx.preset);
     presetSel.value = String(pi);
+
+    // save the current knob positions as a named preset (overwrites one of the same name)
+    saveB.onclick = async () => {
+      const curName = (+presetSel.value >= 0 && presets[+presetSel.value]) ? presets[+presetSel.value].name : '';
+      const name = (await S.askText('Name this preset', { value: curName || 'My preset', placeholder: 'e.g. My vocal chain' }) || '').trim();
+      if (!name) return;
+      const user = readUser();
+      const entry = { name: name, params: S.defaultParams(def, st.fx.params) };
+      const ix = user.findIndex((p) => p.name.toLowerCase() === name.toLowerCase());
+      if (ix >= 0) user[ix] = entry; else user.push(entry);
+      writeUser(user);
+      rebuildPresetSel(builtin.length + readUser().findIndex((p) => p.name === name));
+      st.fx.preset = name;
+      if (S.toast) S.toast('Preset saved: ' + name);
+    };
+    delB.onclick = () => {
+      const v = +presetSel.value;
+      if (!(v >= builtin.length) || !presets[v]) { if (S.toast) S.toast('Pick one of your own presets to delete.'); return; }
+      const name = presets[v].name;
+      writeUser(readUser().filter((p) => p.name !== name));
+      rebuildPresetSel(-1);
+      markCustom();
+      if (S.toast) S.toast('Deleted preset: ' + name);
+    };
 
     const syncBypass = () => {
       bypassB.classList.toggle('off', !!st.fx.bypass);

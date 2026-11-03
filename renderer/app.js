@@ -2,7 +2,8 @@
 (function () {
   const S = window.Studio;
   const $ = (id) => document.getElementById(id);
-  const FILTERS = [{ name: 'Private Studio session', extensions: ['pstudio'] }];
+  // .session is the project format (like .flp). Old .pstudio files still open.
+  const FILTERS = [{ name: 'Session project', extensions: ['session', 'pstudio'] }];
 
   let playFrom = 0;
   let takeCount = 0;
@@ -260,7 +261,7 @@
     try {
       await S.native.syncStates();
       const text = JSON.stringify(S.packProject());
-      const path = await window.studioHost.saveFile({ data: text, defaultName: safeName() + '.pstudio', filters: FILTERS });
+      const path = await window.studioHost.saveFile({ data: text, defaultName: safeName() + '.session', filters: FILTERS });
       if (path) S.toast('Saved');
     } catch (e) {
       S.toast('Save failed: ' + e.message);
@@ -279,7 +280,7 @@
       const text = await S.encryptPacked(S.packProject(), pass);
       const path = await window.studioHost.saveFile({
         data: text,
-        defaultName: safeName() + ' (encrypted).pstudio',
+        defaultName: safeName() + ' (encrypted).session',
         filters: FILTERS,
       });
       if (path) S.toast('Encrypted copy saved. Send the file and tell them the passphrase separately.');

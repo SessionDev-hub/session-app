@@ -30,50 +30,13 @@
   </script>
 
   <header id="top">
-    <!-- row 1: brand, session, files, input, app settings -->
-    <div class="bar">
+    <!-- persistent strip: transport + input are always visible -->
+    <div class="bar topbar">
       <div class="brand" title="Session">
         <img class="brand-mark" src="../assets/mark.svg" alt="" />
         <span class="brand-name">Session</span>
       </div>
       <input id="proj-name" class="txt name" spellcheck="false" title="Session name" />
-
-      <div class="pill">
-        <button id="btn-new" class="btn ghost" data-icon="file" title="New session">New</button>
-        <button id="btn-open" class="btn ghost" data-icon="open" title="Open a session">Open</button>
-        <button id="btn-save" class="btn ghost" data-icon="save" title="Save (Ctrl+S)">Save</button>
-        <button id="btn-share" class="btn ghost" data-icon="lock" title="Save an encrypted copy protected by a passphrase">Share</button>
-      </div>
-      <div class="pill">
-        <button id="btn-import" class="btn ghost" data-icon="import" title="Import audio files (or drag them onto the window)">Import</button>
-        <button id="btn-sounds" class="btn ghost" data-icon="music" title="Your sounds: keep your own samples and drop them onto the timeline">Sounds</button>
-        <button id="btn-export" class="btn primary" data-icon="export" title="Export the song (WAV or MP3)">Export WAV</button>
-        <button id="btn-vault" class="btn ghost" data-icon="vault" title="The Vault: send this song to your friend's song library, or bring a Vault song in">Vault</button>
-        <button id="btn-match" class="btn ghost" data-icon="wand" title="AI Mix: shape your vocal toward a reference or a vibe">AI Mix</button>
-        <button id="btn-tuner" class="btn ghost" data-icon="note" title="Tuner: see the note you're singing or playing in real time">Tuner</button>
-      </div>
-
-      <div class="spacer"></div>
-
-      <div class="pill" title="Musical key of the song. Auto-tune pulls notes into this key.">
-        <span class="pill-ic" data-icon="note"></span>
-        <select id="key-tonic" class="sel sm"></select>
-        <select id="key-mode" class="sel sm"><option>major</option><option>minor</option></select>
-        <button id="btn-key" class="btn ghost" title="Detect the key from the selected clip, or from the whole song if none is selected">Detect</button>
-        <label class="lbl chk" title="Re-detect the key automatically after each recording or import"><input id="key-auto" type="checkbox" /> auto</label>
-        <button id="btn-autotune" class="btn ghost icon-only" data-icon="wand" title="Auto-tune: pitch-correct the selected clip"></button>
-      </div>
-
-      <div class="pill">
-        <button id="btn-vst3" class="btn ghost icon-only" data-icon="cube" title="VST3 plugins: find and use the effects installed on this computer"><span>VST3</span></button>
-        <button id="btn-plugin-import" class="btn ghost icon-only" data-icon="plug" title="Import plugin: add a .js effect and use it right away"></button>
-        <button id="btn-plugins" class="btn ghost icon-only" data-icon="folder" title="Open your plugin folder"></button>
-        <button id="btn-bg" class="btn ghost icon-only" data-icon="gear" title="Settings: background, recording, and more"></button>
-      </div>
-    </div>
-
-    <!-- row 2: transport, tempo, grid, tools, edit, key, mix -->
-    <div class="bar">
       <div class="pill transport">
         <button id="btn-home" class="tbtn" data-icon="home" data-size="16" title="Back to start (Home)"></button>
         <button id="btn-rec" class="tbtn rec" data-icon="record" data-size="18" title="Record (R)"></button>
@@ -84,43 +47,7 @@
           <div id="bbt" class="bbt" title="Bar . beat . tick">1.1.00</div>
         </div>
       </div>
-
-      <div class="pill tempo" title="Song tempo and time signature (used by the bars & beats grid)">
-        <label class="lbl" for="bpm">BPM</label>
-        <input id="bpm" class="txt num bpm" type="number" min="20" max="400" step="0.5" value="120" />
-        <button id="btn-tap" class="btn ghost sm" title="Tap this button in time with the music to set the BPM">Tap</button>
-        <button id="btn-autobpm" class="btn ghost sm" title="Auto-detect the tempo from the selected clip (or the first clip)">Auto</button>
-        <button id="btn-metro" class="btn ghost sm toggle" data-icon="timer" title="Metronome: a click on every beat while playing or recording"></button>
-        <select id="sig" class="sel sm" title="Beats per bar"></select>
-      </div>
-
-      <div class="pill grid-pill" title="Snap to grid (G). Hold Alt while dragging to move freely.">
-        <button id="btn-snap" class="btn ghost toggle" data-icon="magnet" title="Snap to grid (G)">Snap</button>
-        <select id="grid-mode" class="sel sm"><option value="bars">Bars</option><option value="time">Seconds</option></select>
-        <select id="grid-div" class="sel sm"></select>
-      </div>
-
-      <div class="pill tools" role="toolbar" title="Tools">
-        <button class="tool" data-tool="select" data-icon="pointer" title="Select / move / trim (V)"></button>
-        <button class="tool" data-tool="slice" data-icon="scissors" title="Slice: click a clip to cut it, Shift+click cuts every track (C)"></button>
-        <button class="tool" data-tool="erase" data-icon="eraser" title="Erase: click or drag over clips to delete them (E)"></button>
-        <button class="tool" data-tool="mute" data-icon="mute" title="Mute: click clips to mute / unmute them (M)"></button>
-        <button class="tool" data-tool="loop" data-icon="repeat" title="Loop: drag across the timeline to set a loop region; playback repeats it (L to toggle)"></button>
-      </div>
-
-      <div class="pill">
-        <button id="btn-undo" class="btn ghost icon-only" data-icon="undo" title="Undo (Ctrl+Z)"></button>
-        <button id="btn-redo" class="btn ghost icon-only" data-icon="redo" title="Redo (Ctrl+Shift+Z)"></button>
-        <span class="div"></span>
-        <button id="btn-split" class="btn ghost icon-only" data-icon="scissors" title="Split the selected clips at the playhead (S)"></button>
-        <button id="btn-del" class="btn ghost icon-only" data-icon="trash" title="Delete selected clips (Delete)"></button>
-        <span class="div"></span>
-        <button id="btn-zoom-out" class="btn ghost icon-only" data-icon="zoomOut" title="Zoom out (Ctrl+wheel)"></button>
-        <button id="btn-zoom-in" class="btn ghost icon-only" data-icon="zoomIn" title="Zoom in (Ctrl+wheel)"></button>
-      </div>
-
       <div class="spacer"></div>
-
       <div class="pill input-pill" title="Recording input">
         <span class="pill-ic" data-icon="mic"></span>
         <select id="sel-input" class="sel"><option value="">Default input</option></select>
@@ -128,8 +55,117 @@
         <button id="btn-cal" class="btn ghost sm" data-icon="timer" title="Fix latency: measure your real round-trip delay so recorded takes line up with the beat"><span id="lat-readout"></span></button>
         <input id="lat" class="txt num" type="number" value="0" step="5" title="Nudge (ms): manual fine-tune added on top of the measured delay" placeholder="ms" />
       </div>
-
     </div>
+
+    <!-- tab strip -->
+    <nav class="tabrow" id="ui-tabs">
+      <button class="uitab on" data-panel="home" type="button">Home</button>
+      <button class="uitab" data-panel="edit" type="button">Edit</button>
+      <button class="uitab" data-panel="tempo" type="button">Tempo &amp; Key</button>
+      <button class="uitab" data-panel="mix" type="button">Mix</button>
+      <button class="uitab" data-panel="fx" type="button">FX &amp; Plugins</button>
+      <button class="uitab" data-panel="collab" type="button">Collab</button>
+    </nav>
+
+    <!-- tab panels (one shown at a time) -->
+    <div class="bar panelrow">
+      <div class="tabpanel" data-panel="home">
+        <div class="pill">
+          <button id="btn-new" class="btn ghost" data-icon="file" title="New session">New</button>
+          <button id="btn-open" class="btn ghost" data-icon="open" title="Open a session">Open</button>
+          <button id="btn-save" class="btn ghost" data-icon="save" title="Save (Ctrl+S)">Save</button>
+          <button id="btn-share" class="btn ghost" data-icon="lock" title="Save an encrypted copy protected by a passphrase">Share</button>
+        </div>
+        <div class="pill">
+          <button id="btn-import" class="btn ghost" data-icon="import" title="Import audio files (or drag them onto the window)">Import</button>
+          <button id="btn-sounds" class="btn ghost" data-icon="music" title="Your sounds: keep your own samples and drop them onto the timeline">Sounds</button>
+          <button id="btn-export" class="btn primary" data-icon="export" title="Export the song (WAV or MP3)">Export WAV</button>
+        </div>
+      </div>
+
+      <div class="tabpanel" data-panel="edit" hidden>
+        <div class="pill tools" role="toolbar" title="Tools">
+          <button class="tool" data-tool="select" data-icon="pointer" title="Select / move / trim (V)"></button>
+          <button class="tool" data-tool="slice" data-icon="scissors" title="Slice: click a clip to cut it, Shift+click cuts every track (C)"></button>
+          <button class="tool" data-tool="erase" data-icon="eraser" title="Erase: click or drag over clips to delete them (E)"></button>
+          <button class="tool" data-tool="mute" data-icon="mute" title="Mute: click clips to mute / unmute them (M)"></button>
+          <button class="tool" data-tool="loop" data-icon="repeat" title="Loop: drag across the timeline to set a loop region; playback repeats it (L to toggle)"></button>
+        </div>
+        <div class="pill grid-pill" title="Snap to grid (G). Hold Alt while dragging to move freely.">
+          <button id="btn-snap" class="btn ghost toggle" data-icon="magnet" title="Snap to grid (G)">Snap</button>
+          <select id="grid-mode" class="sel sm"><option value="bars">Bars</option><option value="time">Seconds</option></select>
+          <select id="grid-div" class="sel sm"></select>
+        </div>
+        <div class="pill">
+          <button id="btn-undo" class="btn ghost icon-only" data-icon="undo" title="Undo (Ctrl+Z)"></button>
+          <button id="btn-redo" class="btn ghost icon-only" data-icon="redo" title="Redo (Ctrl+Shift+Z)"></button>
+          <span class="div"></span>
+          <button id="btn-split" class="btn ghost icon-only" data-icon="scissors" title="Split the selected clips at the playhead (S)"></button>
+          <button id="btn-del" class="btn ghost icon-only" data-icon="trash" title="Delete selected clips (Delete)"></button>
+          <span class="div"></span>
+          <button id="btn-zoom-out" class="btn ghost icon-only" data-icon="zoomOut" title="Zoom out (Ctrl+wheel)"></button>
+          <button id="btn-zoom-in" class="btn ghost icon-only" data-icon="zoomIn" title="Zoom in (Ctrl+wheel)"></button>
+        </div>
+      </div>
+
+      <div class="tabpanel" data-panel="tempo" hidden>
+        <div class="pill tempo" title="Song tempo and time signature (used by the bars &amp; beats grid)">
+          <label class="lbl" for="bpm">BPM</label>
+          <input id="bpm" class="txt num bpm" type="number" min="20" max="400" step="0.5" value="120" />
+          <button id="btn-tap" class="btn ghost sm" title="Tap this button in time with the music to set the BPM">Tap</button>
+          <button id="btn-autobpm" class="btn ghost sm" title="Auto-detect the tempo from the selected clip (or the first clip)">Auto</button>
+          <button id="btn-metro" class="btn ghost sm toggle" data-icon="timer" title="Metronome: a click on every beat while playing or recording"></button>
+          <select id="sig" class="sel sm" title="Beats per bar"></select>
+        </div>
+        <div class="pill" title="Musical key of the song. Auto-tune pulls notes into this key.">
+          <span class="pill-ic" data-icon="note"></span>
+          <select id="key-tonic" class="sel sm"></select>
+          <select id="key-mode" class="sel sm"><option>major</option><option>minor</option></select>
+          <button id="btn-key" class="btn ghost" title="Detect the key from the selected clip, or from the whole song if none is selected">Detect</button>
+          <label class="lbl chk" title="Re-detect the key automatically after each recording or import"><input id="key-auto" type="checkbox" /> auto</label>
+          <button id="btn-autotune" class="btn ghost icon-only" data-icon="wand" title="Auto-tune: pitch-correct the selected clip"></button>
+        </div>
+      </div>
+
+      <div class="tabpanel" data-panel="mix" hidden>
+        <div class="pill">
+          <button id="btn-match" class="btn ghost" data-icon="wand" title="AI Mix: shape your vocal toward a reference or a vibe">AI Mix</button>
+          <button id="btn-tuner" class="btn ghost" data-icon="note" title="Tuner: see the note you're singing or playing in real time">Tuner</button>
+        </div>
+      </div>
+
+      <div class="tabpanel" data-panel="fx" hidden>
+        <div class="pill">
+          <button id="btn-vst3" class="btn ghost icon-only" data-icon="cube" title="VST3 plugins: find and use the effects installed on this computer"><span>VST3</span></button>
+          <button id="btn-plugin-import" class="btn ghost icon-only" data-icon="plug" title="Import plugin: add a .js effect and use it right away"></button>
+          <button id="btn-plugins" class="btn ghost icon-only" data-icon="folder" title="Open your plugin folder"></button>
+        </div>
+      </div>
+
+      <div class="tabpanel" data-panel="collab" hidden>
+        <div class="pill">
+          <button id="btn-vault" class="btn ghost" data-icon="vault" title="Messages: end-to-end encrypted chat and live sessions with other artists">Messages</button>
+          <button id="btn-bg" class="btn ghost" data-icon="gear" title="Settings: background, recording, and more">Settings</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        var tabs = document.getElementById('ui-tabs');
+        if (!tabs) return;
+        var panels = document.querySelectorAll('.panelrow .tabpanel');
+        function show(id) {
+          panels.forEach(function (p) { p.hidden = p.dataset.panel !== id; });
+          tabs.querySelectorAll('.uitab').forEach(function (b) { b.classList.toggle('on', b.dataset.panel === id); });
+          try { localStorage.setItem('ps.uitab', id); } catch (e) {}
+          window.dispatchEvent(new Event('resize')); // reposition tool thumb + timeline
+        }
+        tabs.addEventListener('click', function (e) { var b = e.target.closest('.uitab'); if (b) show(b.dataset.panel); });
+        var saved = null; try { saved = localStorage.getItem('ps.uitab'); } catch (e) {}
+        show(saved && document.querySelector('.tabpanel[data-panel="' + saved + '"]') ? saved : 'home');
+      })();
+    </script>
   </header>
 
   <main>

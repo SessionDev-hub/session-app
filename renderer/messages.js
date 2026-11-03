@@ -171,7 +171,7 @@
             '</div>';
         } else if (m.text) inner += '<div class="msg-t">' + esc(m.text) + '</div>';
         if (m.file) {
-          const isProj = /\.pstudio$/i.test(m.file.name || '');
+          const isProj = /\.(session|pstudio)$/i.test(m.file.name || '');
           inner += '<div class="msg-file">' + S.ui.icon(isProj ? 'file' : 'import', 12) + ' ' + esc(m.file.name) +
             '<button class="msg-fbtn" data-mid="' + m.id + '" data-name="' + esc(m.file.name) + '" data-proj="' + (isProj ? '1' : '0') + '">' + (isProj ? 'Open in Session' : 'Save') + '</button></div>';
         }
@@ -220,7 +220,7 @@
         try {
           if (S.native && S.native.syncStates) { try { await S.native.syncStates(); } catch (e) {} }
           const bytes = new TextEncoder().encode(JSON.stringify(S.packProject()));
-          await sendBytes((S.project.name || 'session') + '.pstudio', bytes, '📄 ' + (S.project.name || 'Session'));
+          await sendBytes((S.project.name || 'session') + '.session', bytes, '📄 ' + (S.project.name || 'Session'));
           S.toast('Session sent — they can Open it in Session.');
         } catch (e) { S.toast(e.message || 'Could not send the session'); }
         sessend.disabled = false; sessend.innerHTML = prev;
@@ -242,7 +242,7 @@
           // one message carries both the project and the join invite (Vault needs the text).
           // The room key rides inside this end-to-end-encrypted message, so the server never sees it.
           const invite = '🎚️ Live session — open this session, then tap Join. [[live:' + rid + (rkey ? ':' + rkey : '') + ']]';
-          await api('POST', '/send', { peer: id, text: invite, file: { name: (S.project.name || 'session') + '.pstudio', b64: S.b64(bytes) } });
+          await api('POST', '/send', { peer: id, text: invite, file: { name: (S.project.name || 'session') + '.session', b64: S.b64(bytes) } });
           await drawThread(id, false, c);
         } catch (e) {
           if (hosting) { try { S.collab.leave(); } catch (_) {} }

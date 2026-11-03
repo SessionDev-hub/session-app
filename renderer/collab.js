@@ -4,7 +4,7 @@
  *   - Everyone in a room joins the presence channel  presence-sess-<roomId>.
  *   - Joining is signed by our tiny auth service (fly.dev) using the user's Discord
  *     token — the Apinator SECRET never touches the app. Config is window.__APINATOR__.
- *   - The project itself (with audio) travels over Vault Messages as a .pstudio file —
+ *   - The project itself (with audio) travels over Vault Messages as a .session file —
  *     NOT over the realtime channel. The channel carries only small control events:
  *     transport (play/stop/seek) now, and edits in a later milestone.
  *   - Presence tells everyone who's in the room.

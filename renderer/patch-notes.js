@@ -2,6 +2,29 @@
  * "What's new" popup after updating, and the list appears in Settings -> About. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.20.0',
+    date: '2026-11-03',
+    changes: [
+      'New tabbed toolbar: Home, Edit, Tempo & Key, Mix, FX & Plugins and Collab — same tools, far less clutter, with the transport always pinned.',
+      'Save your own presets on any effect: dial in a sound, hit Save in the plugin window, and reuse it anytime (★ in the preset list). Delete removes your own presets.',
+    ],
+  },
+  {
+    version: '0.19.0',
+    date: '2026-11-03',
+    changes: [
+      'New Session Mic Mod: shape a plain mic toward pro studio-mic characters (condenser, tube, broadcast, ribbon, bright) with Proximity and Air.',
+    ],
+  },
+  {
+    version: '0.18.2',
+    date: '2026-11-03',
+    changes: [
+      'Projects now save as .session files — send and open them in Session or straight from Messages, like an FL project.',
+      'Older .pstudio projects still open fine.',
+    ],
+  },
+  {
     version: '0.18.1',
     date: '2026-11-03',
     changes: [

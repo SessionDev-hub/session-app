@@ -829,3 +829,14 @@ main.mdock-right.mv-mixer #mix-panel { width: auto; flex: 1; }
 .msg-joinbtn { margin-left: 4px; border: 0; border-radius: 6px; padding: 4px 12px; font-weight: 600; cursor: pointer; background: #ff5a6a; color: #fff; }
 .msg-joinbtn:hover { filter: brightness(1.08); }
 .msg-joinbtn:disabled { opacity: .6; cursor: default; }
+
+/* ---- Tabbed toolbar ---- */
+.topbar { align-items: center; }
+.tabrow { display: flex; gap: 2px; align-items: stretch; overflow-x: auto; scrollbar-width: none; margin-top: 2px; border-bottom: 1px solid var(--line); }
+.tabrow::-webkit-scrollbar { display: none; }
+.uitab { font: inherit; font-weight: 600; font-size: 13px; color: var(--dim); background: transparent; border: 0; border-bottom: 2px solid transparent; padding: 8px 15px; cursor: pointer; white-space: nowrap; border-radius: 8px 8px 0 0; transition: color .2s var(--ease), border-color .2s var(--ease), background .2s var(--ease); }
+.uitab:hover { color: var(--text); }
+.uitab.on { color: var(--text); border-bottom-color: var(--accent); background: linear-gradient(180deg, rgba(255,255,255,.05), transparent); }
+.panelrow { min-height: 46px; align-items: center; }
+.tabpanel { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; width: 100%; }
+.tabpanel[hidden] { display: none; }
