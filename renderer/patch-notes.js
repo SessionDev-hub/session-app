@@ -2,6 +2,15 @@
  * "What's new" popup after updating, and the list appears in Settings -> About. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.23.0',
+    date: '2026-11-03',
+    changes: [
+      'AI Mix: pointing it at an artist’s song now builds a full vocal chain to sound like them — compression, de-ess, match-EQ, enhancer, reverb and loudness (6 plugins), each dialed in from your voice vs the reference, not just an EQ.',
+      'Every AI Mix is now saved automatically as a reusable preset (and full chains show up in your BandLab-style chain presets too).',
+      'Auto tempo is far more accurate — a rebuilt beat detector locks onto the real BPM, with a one-tap Half-time / Double-time fix if a song is ever read an octave off.',
+    ],
+  },
+  {
     version: '0.22.2',
     date: '2026-11-03',
     changes: [

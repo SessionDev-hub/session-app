@@ -144,6 +144,80 @@
     });
   };
 
+  // ---- extra features for the full "sound like them" chain ----
+  // time-domain peak / rms / crest (dynamics) of a buffer
+  function peakRms(buf) {
+    const len = Math.min(buf.length, Math.floor(buf.sampleRate * 30));
+    let peak = 0, sum = 0, n = 0;
+    for (let c = 0; c < buf.numberOfChannels; c++) {
+      const d = buf.getChannelData(c);
+      for (let i = 0; i < len; i++) { const a = d[i] < 0 ? -d[i] : d[i]; if (a > peak) peak = a; sum += d[i] * d[i]; n++; }
+    }
+    const rms = Math.sqrt(sum / Math.max(1, n) + 1e-12);
+    return { peak, rms, crest: 20 * Math.log10((peak + 1e-9) / (rms + 1e-9)) };
+  }
+  // average dB in a frequency window of a fine spectrum
+  function bandAvg(f, lo, hi) {
+    let s = 0, c = 0;
+    for (let i = 0; i < f.centers.length; i++) { const fc = f.centers[i]; if (fc >= lo && fc <= hi) { s += f.db[i]; c++; } }
+    return c ? s / c : 0;
+  }
+  const tiltOf = (f) => bandAvg(f, 3000, 12000) - bandAvg(f, 100, 400); // spectral tilt (bright vs warm)
+  const sibOf = (f) => bandAvg(f, 5000, 9000) - bandAvg(f, 1000, 3000); // sibilance vs body
+
+  /** Build a full "sound like them" chain (comp → de-ess → match-EQ → enhancer → reverb →
+   *  maximizer) with every stage's settings derived from the reference and your own vocal.
+   *  Returns a list of {pluginId, params} — far more than a lone EQ, so the voice actually
+   *  lands in the reference's space, not just its tone. */
+  M.buildFullChain = (srcBuf, refBuf) => {
+    const srcF = M.analyzeFine(srcBuf), refF = M.analyzeFine(refBuf);
+    if (!srcF) throw new Error('Your vocal is too short or quiet to analyze.');
+    if (!refF) throw new Error('The reference is too short to analyze.');
+    const sp = peakRms(srcBuf);
+    const crest = sp.crest;                     // ~12–20 dB for a raw vocal
+    const sibDb = sibOf(srcF);                  // how sibilant the source is
+    const tiltDiff = tiltOf(refF) - tiltOf(srcF); // + → reference is brighter than you
+    const loudDiff = 20 * Math.log10((refF.rms + 1e-6) / (srcF.rms + 1e-6));
+
+    const mk = (pluginId, over) => {
+      const def = S.plugins.get(pluginId);
+      if (!def) return null;
+      return { pluginId, params: Object.assign({}, S.defaultParams(def), over || {}) };
+    };
+    const list = [];
+
+    // 1) Compression — a more dynamic (high-crest) vocal gets a lower threshold + higher ratio
+    const ratio = clamp(1.8 + (crest - 10) * 0.28, 2, 6);
+    const thr = clamp(-9 - (crest - 10) * 1.1, -28, -9);
+    list.push(mk('ss-comp', { threshold: Math.round(thr * 10) / 10, ratio: Math.round(ratio * 10) / 10, attack: 8, release: 140, knee: 6, auto: true, mix: 100 }));
+
+    // 2) De-esser — only if the source is actually sibilant; range scales with how harsh it is
+    if (sibDb > -6) {
+      const range = clamp(4 + (sibDb + 6) * 1.1, 4, 16);
+      list.push(mk('ss-deesser', { freq: 6800, threshold: -30, range: Math.round(range * 10) / 10 }));
+    }
+
+    // 3) Match EQ — the fine tonal match toward the reference (full strength)
+    const curve = M.curveFine(srcF, refF, 1.0);
+    const eqParams = {};
+    curve.forEach((g, i) => (eqParams['b' + i] = Math.round(g * 10) / 10));
+    list.push(mk('ss-matcheq', eqParams));
+
+    // 4) Enhancer — glue, leaning warm or bright toward the reference's character
+    const mode = tiltDiff > 2 ? 'C · Bright' : (tiltDiff < -2 ? 'B · Warm' : 'A · Glue');
+    const amount = clamp(35 + Math.abs(tiltDiff) * 6, 30, 72);
+    list.push(mk('ss-enhancer', { mode, amount: Math.round(amount) }));
+
+    // 5) Space — a subtle produced-record reverb so the vocal sits like the reference
+    list.push(mk('ss-reverb', { size: 40, decay: 1.4, predelay: 15, mix: 12, lowcut: 200, highcut: 9000, damping: 55 }));
+
+    // 6) Maximizer — lift the level toward the reference's loudness
+    const drive = clamp(2 + Math.max(0, loudDiff) * 0.6, 2, 10);
+    list.push(mk('ss-maximizer', { gain: Math.round(drive * 10) / 10, ceiling: -0.3, release: 120, character: 'Clean' }));
+
+    return list.filter(Boolean);
+  };
+
   /** Gather up to ~30 s of the track's own audio (the raw vocal) for analysis. */
   function trackBuffer(track) {
     const clips = (track.clips || []).filter((c) => S.buffers.has(c.asset));
@@ -282,7 +356,7 @@
       '<div class="param"><label>Match to</label><span class="seg mt-mode"></span><span></span></div>' +
       '<div class="mt-target"></div>' +
       '<div class="param"><label>Your vocal track</label><select class="sel mt-track"></select><span></span></div>' +
-      '<label class="mt-chk"><input type="checkbox" class="mt-full" checked> Also add a vocal chain (de-esser + compression)</label>' +
+      '<label class="mt-chk"><input type="checkbox" class="mt-full" checked> Build the full chain to sound like the reference (compression, de-ess, match-EQ, enhancer, reverb, loudness) — not just an EQ</label>' +
       '<div class="param"><label>Save as a preset</label><input class="sel mt-pname" type="text" placeholder="e.g. Drake vocal, My main sound… (optional)" maxlength="40"><span class="hint">Reuse this sound on any track later.</span></div>' +
       '<div class="mt-foot"></div>';
 
@@ -369,29 +443,35 @@
       go.innerHTML = '<span class="vd-spin"></span>Analyzing…';
       await new Promise((r) => setTimeout(r)); // let the UI paint
       try {
-        let curve, outTrim = 0;
-        if (state.mode === 'file') {
-          // high-resolution reference match
+        let fxList;
+        const srcLabel = state.mode === 'file' ? refName : state.vibe;
+        if (state.mode === 'file' && state.fullChain) {
+          // full "sound like them" chain: comp → de-ess → match-EQ → enhancer → reverb → maximizer
+          fxList = M.buildFullChain(vbuf, refBuf);
+        } else if (state.mode === 'file') {
+          // tonal match only (EQ), no added chain
           const srcF = M.analyzeFine(vbuf), refF = M.analyzeFine(refBuf);
           if (!srcF) throw new Error('Your vocal is too short or quiet to analyze.');
           if (!refF) throw new Error('The reference is too short to analyze.');
-          curve = M.curveFine(srcF, refF, 0.9);
-          outTrim = clamp(20 * Math.log10((refF.rms + 1e-6) / (srcF.rms + 1e-6)) * 0.4, -6, 6);
+          const curve = M.curveFine(srcF, refF, 0.9);
+          const outTrim = clamp(20 * Math.log10((refF.rms + 1e-6) / (srcF.rms + 1e-6)) * 0.4, -6, 6);
+          fxList = M.buildFx(curve, outTrim, false);
         } else {
           const src = M.analyze(vbuf);
           if (!src) throw new Error('Your vocal is too short or quiet to analyze.');
-          curve = M.curve(src.db, M.VIBES[state.vibe], 0.8);
+          const curve = M.curve(src.db, M.VIBES[state.vibe], 0.8);
+          fxList = M.buildFx(curve, 0, state.fullChain);
         }
-        const fxList = M.buildFx(curve, outTrim, state.fullChain);
         M.applyFx(track, fxList);
-        const srcLabel = state.mode === 'file' ? refName : state.vibe;
         let pname = (body.querySelector('.mt-pname').value || '').trim();
-        let saved = false;
-        if (pname) {
-          M.presets.save({ id: S.uid(), name: pname, from: 'from ' + srcLabel, fx: fxList });
-          saved = true;
+        // always keep a reusable preset of the sound; auto-name it when the user didn't
+        const presetName = pname || ('AI Mix: ' + srcLabel).slice(0, 40);
+        M.presets.save({ id: S.uid(), name: presetName, from: 'from ' + srcLabel, fx: fxList });
+        // a full chain is also saved as a chain preset so it shows up with BandLab-style presets
+        if (state.mode === 'file' && state.fullChain && S.chainPresets) {
+          try { S.chainPresets.save(track, presetName); } catch (e) {}
         }
-        S.toast('Matched “' + (track.name || 'track') + '” to ' + srcLabel + '.' + (saved ? ' Saved preset “' + pname + '”.' : ' Tweak it in the Match EQ.'));
+        S.toast('Matched “' + (track.name || 'track') + '” to ' + srcLabel + ' with ' + fxList.length + ' plugins. Saved as “' + presetName + '”.');
         dlg.close();
       } catch (e) {
         go.disabled = cancel.disabled = false;

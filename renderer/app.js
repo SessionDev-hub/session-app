@@ -548,7 +548,14 @@
       const bpm = S.detectBpm(buf);
       if (!bpm) return S.toast('Couldn’t find a clear beat on “' + (t.name || 'track') + '”.');
       setBpm(bpm);
-      S.toast('Detected ' + bpm + ' BPM from “' + (t.name || 'track') + '”.');
+      // Tempo octave is ambiguous (e.g. 150 vs 75) — offer one-tap half/double so it's always right.
+      const half = Math.round(bpm / 2 * 10) / 10, dbl = Math.round(bpm * 2 * 10) / 10;
+      const items = [{ label: 'Keep ' + bpm + ' BPM', hint: 'detected', action: () => {} }];
+      if (half >= 40) items.push({ label: 'Half-time: ' + half + ' BPM', action: () => setBpm(half) });
+      if (dbl <= 300) items.push({ label: 'Double-time: ' + dbl + ' BPM', action: () => setBpm(dbl) });
+      const btn = $('btn-autobpm'), r = btn && btn.getBoundingClientRect();
+      if (r && S.clips && S.clips.menu) S.clips.menu(r.left, r.bottom + 4, items);
+      S.toast('Detected ' + bpm + ' BPM from “' + (t.name || 'track') + '”. Not feeling it? Pick half or double.');
     }, 20);
   }
   function autoBpm() {
