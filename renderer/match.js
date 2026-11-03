@@ -91,6 +91,59 @@
     return tgt.map((t, i) => clamp((t - src[i]) * strength, -12, 12));
   };
 
+  /* ---- high-resolution matching (1/3-octave) ----
+   * The 10-band read is coarse. For a real reference match we analyze both signals at
+   * 1/3-octave resolution (~30 bands), build a smoothed difference, ignore bands your vocal
+   * barely has (so it doesn't boost hiss or sub it can't produce), then fit that fine curve
+   * onto the 10-band EQ. The result follows the reference's tone far more closely. */
+  M.analyzeFine = (buffer) => {
+    const sr = buffer.sampleRate, N = 4096, hop = 2048, len = buffer.length;
+    const mono = new Float32Array(len);
+    for (let c = 0; c < buffer.numberOfChannels; c++) { const d = buffer.getChannelData(c); for (let i = 0; i < len; i++) mono[i] += d[i] / buffer.numberOfChannels; }
+    const maxLen = Math.min(len, sr * 30);
+    const win = new Float32Array(N); for (let i = 0; i < N; i++) win[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (N - 1));
+    const power = new Float64Array(N / 2);
+    let frames = 0, energy = 0; const re = new Float64Array(N), im = new Float64Array(N);
+    for (let start = 0; start + N <= maxLen; start += hop) {
+      im.fill(0);
+      for (let i = 0; i < N; i++) { const s = mono[start + i]; re[i] = s * win[i]; energy += s * s; }
+      fft(re, im);
+      for (let k = 0; k < N / 2; k++) power[k] += re[k] * re[k] + im[k] * im[k];
+      frames++;
+    }
+    if (frames < 2) return null;
+    for (let k = 0; k < N / 2; k++) power[k] /= frames;
+    const nyq = sr / 2, step = Math.pow(2, 1 / 3), centers = [];
+    for (let f = 25; f <= Math.min(20000, nyq); f *= step) centers.push(f);
+    const edges = centers.map((f, i) => (i === 0 ? f / Math.pow(2, 1 / 6) : Math.sqrt(f * centers[i - 1])));
+    edges.push(centers[centers.length - 1] * Math.pow(2, 1 / 6));
+    const bands = centers.map(() => 0), bn = centers.map(() => 0);
+    for (let k = 1; k < N / 2; k++) { const f = (k * sr) / N; for (let b = 0; b < centers.length; b++) { if (f >= edges[b] && f < edges[b + 1]) { bands[b] += power[k]; bn[b]++; break; } } }
+    const db = bands.map((p, i) => 10 * Math.log10((bn[i] ? p / bn[i] : 1e-9) + 1e-12));
+    return { centers, db, rms: Math.sqrt(energy / (frames * N) + 1e-12), peakDb: Math.max.apply(null, db) };
+  };
+
+  /** 10-band EQ gains that steer a fine source spectrum toward a fine target spectrum. */
+  M.curveFine = (src, tgt, strength) => {
+    const n = Math.min(src.db.length, tgt.db.length);
+    const sN = normalize(src.db.slice(0, n)), tN = normalize(tgt.db.slice(0, n));
+    const diff = new Array(n);
+    for (let i = 0; i < n; i++) {
+      // confidence: bands >35 dB below the vocal's own peak carry no usable content
+      const conf = clamp((src.db[i] - (src.peakDb - 35)) / 20, 0, 1);
+      diff[i] = (tN[i] - sN[i]) * conf;
+    }
+    const sm = diff.map((_, i) => { let s = 0, c = 0; for (let j = -1; j <= 1; j++) { const k = i + j; if (k >= 0 && k < n) { s += diff[k]; c++; } } return s / c; });
+    const centers = src.centers.slice(0, n);
+    return FREQS.map((fc, b) => {
+      let s = 0, c = 0;
+      for (let i = 0; i < n; i++) if (centers[i] >= EDGES[b] && centers[i] < EDGES[b + 1]) { s += sm[i]; c++; }
+      let g = (c ? s / c : 0) * strength;
+      const lo = FREQS[b] < 120 ? -6 : -12, hi = FREQS[b] < 120 ? 4 : 12; // don't chase sub-bass a vocal lacks
+      return clamp(Math.round(g * 10) / 10, lo, hi);
+    });
+  };
+
   /** Gather up to ~30 s of the track's own audio (the raw vocal) for analysis. */
   function trackBuffer(track) {
     const clips = (track.clips || []).filter((c) => S.buffers.has(c.asset));
@@ -311,18 +364,19 @@
       go.innerHTML = '<span class="vd-spin"></span>Analyzing…';
       await new Promise((r) => setTimeout(r)); // let the UI paint
       try {
-        const src = M.analyze(vbuf);
-        if (!src) throw new Error('Your vocal is too short or quiet to analyze.');
-        let targetShape, outTrim = 0;
+        let curve, outTrim = 0;
         if (state.mode === 'file') {
-          const ref = M.analyze(refBuf);
-          if (!ref) throw new Error('The reference is too short to analyze.');
-          targetShape = ref.db;
-          outTrim = clamp(20 * Math.log10((ref.rms + 1e-6) / (src.rms + 1e-6)) * 0.4, -6, 6);
+          // high-resolution reference match
+          const srcF = M.analyzeFine(vbuf), refF = M.analyzeFine(refBuf);
+          if (!srcF) throw new Error('Your vocal is too short or quiet to analyze.');
+          if (!refF) throw new Error('The reference is too short to analyze.');
+          curve = M.curveFine(srcF, refF, 0.9);
+          outTrim = clamp(20 * Math.log10((refF.rms + 1e-6) / (srcF.rms + 1e-6)) * 0.4, -6, 6);
         } else {
-          targetShape = M.VIBES[state.vibe];
+          const src = M.analyze(vbuf);
+          if (!src) throw new Error('Your vocal is too short or quiet to analyze.');
+          curve = M.curve(src.db, M.VIBES[state.vibe], 0.8);
         }
-        const curve = M.curve(src.db, targetShape, 0.8);
         const fxList = M.buildFx(curve, outTrim, state.fullChain);
         M.applyFx(track, fxList);
         const srcLabel = state.mode === 'file' ? refName : state.vibe;

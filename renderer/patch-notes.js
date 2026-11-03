@@ -2,6 +2,14 @@
  * "What's new" popup after updating, and the list appears in Settings -> About. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.21.0',
+    date: '2026-11-03',
+    changes: [
+      'AI Mix is far more accurate: it now reads both your vocal and the reference at fine (1/3-octave) resolution and matches the tone closely, without boosting frequencies your voice doesn’t have.',
+      'Auto tempo now asks which track and locks onto that track’s beat — point it at your drums for a reliable BPM.',
+    ],
+  },
+  {
     version: '0.20.0',
     date: '2026-11-03',
     changes: [

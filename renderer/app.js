@@ -536,22 +536,34 @@
     S.emit('tempo-changed', { bpm: S.project.bpm, beatsPerBar: S.project.beatsPerBar });
   }
 
-  // Auto-detect tempo from the selected clip (or the first clip that has audio).
-  function autoBpm() {
-    let asset = null;
-    const sel = S.timeline && S.timeline.selected;
-    if (sel) for (const t of S.project.tracks) { const c = t.clips.find((c) => c.id === sel); if (c) { asset = c.asset; break; } }
-    if (!asset) for (const t of S.project.tracks) { if (t.clips.length) { asset = t.clips[0].asset; break; } }
-    const buf = asset && S.buffers.get(asset);
-    if (!buf) return S.toast('Add or select a clip first, then Auto detects its tempo.');
+  // Auto-detect tempo from the BEAT on a chosen track. Asks which track when there's more
+  // than one with audio, then reads the tempo from that track's longest clip (its groove).
+  function detectFromTrack(t) {
+    let buf = null;
+    for (const c of t.clips || []) { const b = S.buffers.get(c.asset); if (b && (!buf || b.duration > buf.duration)) buf = b; }
+    if (!buf) return S.toast('That track has no audio.');
     if (!S.detectBpm) return;
-    S.toast('Detecting tempo…');
+    S.toast('Finding the beat…');
     setTimeout(() => {
       const bpm = S.detectBpm(buf);
-      if (!bpm) return S.toast('Couldn’t find a clear tempo in that clip.');
+      if (!bpm) return S.toast('Couldn’t find a clear beat on “' + (t.name || 'track') + '”.');
       setBpm(bpm);
-      S.toast('Detected tempo: ' + bpm + ' BPM');
+      S.toast('Detected ' + bpm + ' BPM from “' + (t.name || 'track') + '”.');
     }, 20);
+  }
+  function autoBpm() {
+    const withAudio = S.project.tracks.filter((t) => (t.clips || []).some((c) => S.buffers.has(c.asset)));
+    if (!withAudio.length) return S.toast('Import or record something first — Auto reads the beat from a track.');
+    if (withAudio.length === 1) return detectFromTrack(withAudio[0]);
+    const btn = $('btn-autobpm');
+    const r = btn.getBoundingClientRect();
+    const items = withAudio.map((t, i) => ({
+      label: t.name || ('Track ' + (S.project.tracks.indexOf(t) + 1)),
+      hint: 'read the beat here',
+      action: () => detectFromTrack(t),
+    }));
+    if (S.clips && S.clips.menu) S.clips.menu(r.left, r.bottom + 4, items);
+    else detectFromTrack(withAudio[0]);
   }
 
   const taps = [];
