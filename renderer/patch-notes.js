@@ -2,6 +2,13 @@
  * "What's new" popup after updating, and the list appears in Settings -> About. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.24.1',
+    date: '2026-11-03',
+    changes: [
+      'Fixed the timeline sometimes going blank/purple (it would clear when the window or a panel resized at the wrong moment and not redraw). The playlist now always repaints and never gets stuck.',
+    ],
+  },
+  {
     version: '0.24.0',
     date: '2026-11-03',
     changes: [

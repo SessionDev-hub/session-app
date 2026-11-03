@@ -390,31 +390,41 @@
   /* ---------- main loop ---------- */
   let inShown = 0;
   function loop() {
-    // if the audio context slipped out of 'running' while we're meant to be playing
-    // (device change, sleep, power event), bring it back so sound doesn't stay dead
-    if (S.engine.playing && S.engine.ensureRunning) S.engine.ensureRunning();
-    const pos = S.engine.position();
-    if (pos !== null) {
-      S.playhead = pos;
-      const lp = S.project.loop;
-      const looping = lp && lp.on && !S.engine.isRecording && lp.end - lp.start > 0.05;
-      if (looping && pos >= lp.end) {
-        S.engine.play(lp.start); // jump back to the loop start and keep going
-        S.playhead = lp.start;
-      } else if (!S.engine.isRecording && !looping && pos > S.projectLength() + 0.4) S.stopTransport();
-      // while looping we never auto-stop at the end of content — the loop region drives playback,
-      // so a loop that extends past the last clip still wraps correctly.
+    // A single bad frame must NEVER kill the render loop — if it did, the timeline would freeze
+    // on whatever was last drawn (or go blank after the next resize clears the canvas) and never
+    // recover. So the whole body is guarded and the next frame is ALWAYS scheduled (finally).
+    try {
+      // if the audio context slipped out of 'running' while we're meant to be playing
+      // (device change, sleep, power event), bring it back so sound doesn't stay dead
+      if (S.engine.playing && S.engine.ensureRunning) S.engine.ensureRunning();
+      const pos = S.engine.position();
+      if (pos !== null) {
+        S.playhead = pos;
+        const lp = S.project.loop;
+        const looping = lp && lp.on && !S.engine.isRecording && lp.end - lp.start > 0.05;
+        if (looping && pos >= lp.end) {
+          S.engine.play(lp.start); // jump back to the loop start and keep going
+          S.playhead = lp.start;
+        } else if (!S.engine.isRecording && !looping && pos > S.projectLength() + 0.4) S.stopTransport();
+        // while looping we never auto-stop at the end of content — the loop region drives playback,
+        // so a loop that extends past the last clip still wraps correctly.
+      }
+      const timeEl = $('time'); if (timeEl) timeEl.textContent = fmtTime(S.playhead);
+      const bbtEl = $('bbt'); if (bbtEl) bbtEl.textContent = S.grid.bbt(S.playhead);
+      // skip drawing whatever panel is hidden by the current view, to keep things smooth
+      const view = S.workspace ? S.workspace.current() : 'both';
+      if (view !== 'mixer') S.timeline.draw();
+      if (view !== 'playlist' && S.mixer && S.mixer.updateMeters) S.mixer.updateMeters();
+      const lvl = S.engine.inputLevel();
+      inShown = Math.max(lvl, inShown * 0.93); // instant rise, smooth fall
+      const inMeter = $('in-meter');
+      if (inMeter) inMeter.style.width = (S.clamp(((inShown > 0.00003 ? 20 * Math.log10(inShown) : -90) + 60) / 60, 0, 1) * 100).toFixed(1) + '%';
+    } catch (e) {
+      if (!loop._warned) { console.error('[Session] render loop error (kept alive):', e); loop._warned = true; }
+      if (S.timeline) S.timeline.dirty = true; // force a repaint attempt next frame
+    } finally {
+      requestAnimationFrame(loop);
     }
-    $('time').textContent = fmtTime(S.playhead);
-    $('bbt').textContent = S.grid.bbt(S.playhead);
-    // skip drawing whatever panel is hidden by the current view, to keep things smooth
-    const view = S.workspace ? S.workspace.current() : 'both';
-    if (view !== 'mixer') S.timeline.draw();
-    if (view !== 'playlist') S.mixer.updateMeters();
-    const lvl = S.engine.inputLevel();
-    inShown = Math.max(lvl, inShown * 0.93); // instant rise, smooth fall
-    $('in-meter').style.width = (S.clamp(((inShown > 0.00003 ? 20 * Math.log10(inShown) : -90) + 60) / 60, 0, 1) * 100).toFixed(1) + '%';
-    requestAnimationFrame(loop);
   }
 
 

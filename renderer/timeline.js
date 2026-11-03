@@ -141,8 +141,12 @@
 
   TL.resize = () => {
     if (!canvas) return;
-    const dpr = window.devicePixelRatio || 1;
     const w = scroll.clientWidth;
+    // If the container is momentarily 0-wide (hidden during a tab/layout switch, mid-reflow),
+    // DON'T resize — setting canvas.width clears it to a 1px blank, and if a redraw doesn't land
+    // the timeline shows the app background straight through. Keep the last good size and retry.
+    if (w <= 0) { TL.dirty = true; return; }
+    const dpr = window.devicePixelRatio || 1;
     const h = TL.height();
     canvas.width = Math.max(1, Math.floor(w * dpr));
     canvas.height = Math.floor(h * dpr);
@@ -1242,6 +1246,10 @@
     const w = scroll.clientWidth;
     const h = TL.height();
     const p = S.project;
+
+    // Container not laid out yet (0-wide while a tab/panel is mid-switch): don't clear the canvas
+    // to transparent — leave the last good frame up and try again once it has a real width.
+    if (w <= 0) { TL.dirty = true; return; }
 
     // follow the playhead smoothly: once it passes 55% of the view, the view scrolls with it
     if (live && !drag) {
