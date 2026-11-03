@@ -7,6 +7,12 @@
   <link rel="icon" href="../assets/icon.png" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="soundcheck.css" />
+  <style>
+    /* Notes + Settings live in the tab row at all times (right-aligned, slightly set apart) */
+    #ui-tabs .uitab.act { opacity: .92; }
+    #ui-tabs .uitab.act:first-of-type { margin-left: 2px; }
+    #ui-tabs #btn-settings-tab { font-weight: 600; }
+  </style>
 </head>
 <body>
   <!-- load screen: shown until the audio engine and plugins are ready -->
@@ -66,6 +72,9 @@
       <button class="uitab" data-panel="mix" type="button">Mix</button>
       <button class="uitab" data-panel="fx" type="button">FX &amp; Plugins</button>
       <button class="uitab" data-panel="collab" type="button">Collab</button>
+      <span class="uitab-gap" style="flex:1"></span>
+      <button class="uitab act" id="btn-notes" type="button" title="Notes &amp; Lyrics: jot down your words and ideas; saved with your song">Notes</button>
+      <button class="uitab act" id="btn-settings-tab" type="button" title="Settings: background, recording, Discord and more">⚙ Settings</button>
     </nav>
 
     <!-- tab panels (one shown at a time) -->
@@ -146,7 +155,6 @@
       <div class="tabpanel" data-panel="collab" hidden>
         <div class="pill">
           <button id="btn-vault" class="btn ghost" data-icon="vault" title="Messages: end-to-end encrypted chat and live sessions with other artists">Messages</button>
-          <button id="btn-bg" class="btn ghost" data-icon="gear" title="Settings: background, recording, and more">Settings</button>
         </div>
       </div>
     </div>
@@ -162,7 +170,9 @@
           try { localStorage.setItem('ps.uitab', id); } catch (e) {}
           window.dispatchEvent(new Event('resize')); // reposition tool thumb + timeline
         }
-        tabs.addEventListener('click', function (e) { var b = e.target.closest('.uitab'); if (b) show(b.dataset.panel); });
+        // only panel tabs switch panels; action tabs (Notes, Settings) have no data-panel and are
+        // wired by their own modules, so ignore them here.
+        tabs.addEventListener('click', function (e) { var b = e.target.closest('.uitab'); if (b && b.dataset.panel) show(b.dataset.panel); });
         var saved = null; try { saved = localStorage.getItem('ps.uitab'); } catch (e) {}
         show(saved && document.querySelector('.tabpanel[data-panel="' + saved + '"]') ? saved : 'home');
       })();
@@ -223,6 +233,7 @@
   <script src="update-target.js"></script>
   <script src="vendor/apinator.min.js"></script>
   <script src="collab.js"></script>
+  <script src="notes.js"></script>
   <script src="presence.js"></script>
   <script src="updates.js"></script>
   <script src="gate.js"></script>

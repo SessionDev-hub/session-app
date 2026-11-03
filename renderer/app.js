@@ -780,6 +780,7 @@
     if (S.tuner) S.tuner.init();
     if (S.metronome) S.metronome.init();
     if (S.collab) S.collab.init();
+    if (S.notes) S.notes.init();
     if (S.presence) S.presence.init();
     if (S.updates) S.updates.init();
     initGridControls();

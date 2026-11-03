@@ -30,6 +30,7 @@
     beatsPerBar: 4,
     grid: { mode: 'bars', div: '1/4', timeDiv: '0.25', snap: true },
     loop: { start: 0, end: 0, on: false },
+    notes: '', // lyrics / notes, written in the Notes panel; saved with the song
     assets: {},
   });
 
@@ -82,6 +83,7 @@
     p.master = p.master || { vol: 0.85 };
     p.master.fx = p.master.fx || [];
     if (p.keyAuto === undefined) p.keyAuto = true;
+    if (typeof p.notes !== 'string') p.notes = '';
     if (!p.loop || typeof p.loop !== 'object') p.loop = { start: 0, end: 0, on: false };
     if (S.grid) S.grid.ensure(p);
     p.tracks.forEach((t, i) => {

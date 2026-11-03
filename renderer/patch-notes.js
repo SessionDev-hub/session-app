@@ -2,6 +2,14 @@
  * "What's new" popup after updating, and the list appears in Settings -> About. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.24.5',
+    date: '2026-11-03',
+    changes: [
+      'New Notes tab: write your lyrics, hooks and ideas in a floating pad while you work. It saves inside your song, so your words travel with the .session when you send it.',
+      'Settings is now always in the top bar (next to Collab) — no more hunting for it.',
+    ],
+  },
+  {
     version: '0.24.4',
     date: '2026-11-03',
     changes: [

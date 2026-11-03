@@ -90,7 +90,7 @@
   };
 
   G.init = () => {
-    const btn = document.getElementById('btn-bg'); // the toolbar gear
+    const btn = document.getElementById('btn-settings-tab') || document.getElementById('btn-bg'); // the toolbar gear
     if (btn) {
       btn.onclick = () => G.open();
       btn.title = 'Settings: background, recording, and more';
