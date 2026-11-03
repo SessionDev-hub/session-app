@@ -49,6 +49,14 @@ function vaultPaths(home = os.homedir()) {
 
 /** Where The Vault program is installed (per-user installer first). */
 function vaultExe(home = os.homedir()) {
+  if (process.platform === 'darwin') {
+    // The Vault.app ships the real binary at Contents/MacOS/The Vault
+    const mac = [
+      '/Applications/The Vault.app/Contents/MacOS/The Vault',
+      path.join(home, 'Applications', 'The Vault.app', 'Contents', 'MacOS', 'The Vault'),
+    ];
+    return mac.find((p) => fs.existsSync(p)) || null;
+  }
   const local = process.env.LOCALAPPDATA || path.join(home, 'AppData', 'Local');
   const candidates = [
     path.join(local, 'Programs', 'The Vault', 'The Vault.exe'),

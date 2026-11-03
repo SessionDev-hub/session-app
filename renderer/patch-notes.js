@@ -2,6 +2,20 @@
  * "What's new" popup after updating, and the list appears in Settings -> About. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.22.2',
+    date: '2026-11-03',
+    changes: [
+      'Mac: Session now finds and launches The Vault app, so Messages and live collab work on Mac just like Windows (needs The Vault for Mac installed).',
+    ],
+  },
+  {
+    version: '0.22.1',
+    date: '2026-11-03',
+    changes: [
+      'Mac: Session now tells you when a new version is out and gives you a one-click Download (Mac can’t auto-install yet, but you’ll never be stuck on an old build).',
+    ],
+  },
+  {
     version: '0.22.0',
     date: '2026-11-03',
     changes: [

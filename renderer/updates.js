@@ -85,10 +85,40 @@
     ]);
   }
 
+  /* ---------- Mac (no auto-update without code signing: notify + open the download) ---------- */
+  function newer(a, b) {
+    const pa = String(a).split('.').map(Number), pb = String(b).split('.').map(Number);
+    for (let i = 0; i < 3; i++) { if ((pa[i] || 0) > (pb[i] || 0)) return true; if ((pa[i] || 0) < (pb[i] || 0)) return false; }
+    return false;
+  }
+  async function initMac() {
+    // desktop Electron app only (onUpdate is exposed by the Electron preload, not the web host)
+    if (!host().onUpdate || !host().openExternal) return;
+    if (!/Macintosh|Mac OS X/i.test(navigator.userAgent)) return; // Windows handles itself via events
+    const target = window.__UPDATE_GITHUB__;
+    const cur = window.__SESSION_VERSION__ || '0.0.0';
+    if (!target || !target.owner || target.owner === 'YOUR_GITHUB_USERNAME') return;
+    const base = 'https://github.com/' + target.owner + '/' + target.repo + '/releases';
+    let ver = '';
+    try {
+      // latest-mac.yml is published by electron-builder for the mac zip target; it names the newest version
+      const r = await fetch(base + '/latest/download/latest-mac.yml', { cache: 'no-store' });
+      if (!r.ok) return;
+      const m = (await r.text()).match(/version:\s*([0-9][0-9.]*)/i);
+      ver = m && m[1];
+    } catch (e) { return; } // offline or no mac release yet
+    if (!ver || !newer(ver, cur)) return;
+    banner('Session v' + ver + ' is available for Mac.', [
+      { label: 'Not now', onClick: dismiss },
+      { label: 'Download', primary: true, onClick: () => { try { host().openExternal(base + '/latest'); } catch (e) {} dismiss(); } },
+    ]);
+  }
+
   S.updates = {
     init() {
       initWindows();
       initAndroid();
+      initMac();
     },
   };
 })();
