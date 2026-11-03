@@ -164,15 +164,43 @@
       }
     }
 
-    /** Send Session's sound to a chosen output device. '' = system default. */
+    /** Send Session's sound to a chosen output device. '' = system default.
+     * Resilient: a stale device id (headphones re-plugged, Windows rotating ids, Bluetooth waking)
+     * is re-matched by re-enumerating; if it still can't attach we fall back to the system default
+     * so sound keeps playing instead of going silent, and report the real error name. */
     async setOutputDevice(id) {
       if (!this.ctx.setSinkId) return false;
+      const want = id || '';
+      // a suspended context can reject setSinkId on some drivers — wake it first
+      try { if (this.ctx.state === 'suspended') await this.ctx.resume(); } catch (e) {}
       try {
-        await this.ctx.setSinkId(id || '');
-        this.outputDevice = id || '';
+        await this.ctx.setSinkId(want);
+        this.outputDevice = want;
+        if (want) { try { const d = (await this.listOutputs()).find((o) => o.deviceId === want); if (d) this._lastOutLabel = d.label || null; } catch (e) {} }
         return true;
       } catch (e) {
-        S.toast('Could not switch output device.');
+        // 1) the id may be stale, or the device was briefly busy (AbortError when a headset/BT
+        //    device is waking). Re-enumerate, then retry — by id, then by remembered label, and
+        //    finally the same id once more after a short wait for a transient failure.
+        if (want) {
+          try {
+            await new Promise((r) => setTimeout(r, 250));
+            const outs = await this.listOutputs();
+            let d = outs.find((o) => o.deviceId === want);
+            if (!d && this._lastOutLabel) d = outs.find((o) => o.label && o.label === this._lastOutLabel);
+            const target = d ? d.deviceId : want; // retry the original id too (transient errors)
+            await this.ctx.setSinkId(target);
+            this.outputDevice = target; this._lastOutLabel = (d && d.label) || this._lastOutLabel;
+            return true;
+          } catch (e2) {}
+        }
+        // 2) last resort: fall back to the system default so audio isn't left silent/broken
+        let fell = false;
+        try { await this.ctx.setSinkId(''); this.outputDevice = ''; fell = true; } catch (e3) {}
+        console.warn('[Session] setOutputDevice failed for', want || '(default)', '-', e && e.name, e && e.message);
+        S.toast(fell
+          ? 'Couldn’t use that output (' + ((e && e.name) || 'error') + ') — back on the system default.'
+          : 'Could not switch output device (' + ((e && e.name) || 'error') + ').');
         return false;
       }
     }

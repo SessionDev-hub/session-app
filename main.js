@@ -385,12 +385,13 @@ ipcMain.handle('file:open', async (_e, { filters }) => {
 if (process.platform === 'win32') app.setAppUserModelId('Session.PrivateStudio'); // taskbar uses our icon
 
 app.whenReady().then(() => {
-  // Only allow audio capture; deny every other permission request.
+  // Allow audio capture AND choosing the audio output device (speaker-selection, which
+  // AudioContext.setSinkId needs to switch to headphones/another output). Deny everything else.
   const audioOnly = (details) => !details || !details.mediaTypes || details.mediaTypes.every((t) => t === 'audio');
-  session.defaultSession.setPermissionRequestHandler((_wc, permission, cb, details) =>
-    cb(permission === 'media' && audioOnly(details))
-  );
-  session.defaultSession.setPermissionCheckHandler((_wc, permission) => permission === 'media');
+  const allowed = (permission, details) =>
+    (permission === 'media' && audioOnly(details)) || permission === 'speaker-selection';
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, cb, details) => cb(allowed(permission, details)));
+  session.defaultSession.setPermissionCheckHandler((_wc, permission) => permission === 'media' || permission === 'speaker-selection');
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

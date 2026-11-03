@@ -2,6 +2,13 @@
  * "What's new" popup after updating, and the list appears in Settings -> About. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.24.2',
+    date: '2026-11-03',
+    changes: [
+      'Fixed “Could not switch output device” when choosing headphones or another output — Session now has permission to switch outputs, and retries/falls back instead of failing.',
+    ],
+  },
+  {
     version: '0.24.1',
     date: '2026-11-03',
     changes: [
