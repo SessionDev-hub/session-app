@@ -667,7 +667,12 @@
     /** Round-trip latency used to align takes: measured value if calibrated, else the browser's estimate. */
     latencySeconds() {
       if (this.calibrated != null) return this.calibrated;
-      return (this.ctx.baseLatency || 0) + (this.ctx.outputLatency || 0) + this.inputLatency();
+      const raw = (this.ctx.baseLatency || 0) + (this.ctx.outputLatency || 0) + this.inputLatency();
+      // Browsers — especially with an audio interface on Windows — sometimes report a wildly inflated
+      // output latency (occasionally ~1 s), which would shove every take a full second out of place.
+      // Real monitoring round-trip is well under this, so cap the ESTIMATE. A real measured value
+      // (Measure with mic) or the manual Nudge offset can still go higher when genuinely needed.
+      return Math.min(Math.max(0, raw), 0.25);
     }
 
     /** The microphone path's own delay, when the browser reports it. */

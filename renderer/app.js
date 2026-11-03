@@ -482,7 +482,8 @@
   // good baseline so recorded takes still line up.
   function useAutoLatency(quiet) {
     const sec = (S.ctx.baseLatency || 0) + (S.ctx.outputLatency || 0) + S.engine.inputLatency();
-    const clamped = Math.min(0.5, Math.max(0, sec));
+    // Cap it: some interfaces report a bogus ~1 s output latency, which would misalign every take.
+    const clamped = Math.min(0.25, Math.max(0, sec));
     S.engine.calibrated = clamped;
     writeStore(calKey(), { seconds: clamped, sampleRate: S.ctx.sampleRate });
     updateLatencyReadout();
@@ -769,7 +770,17 @@
       S.project.name = e.target.value || 'Untitled Session';
       document.title = S.project.name + ' – Session';
     };
-    $('lat').onchange = (e) => (S.engine.latencyOffsetMs = +e.target.value || 0);
+    $('lat').onchange = (e) => {
+      const v = +e.target.value || 0;
+      S.engine.latencyOffsetMs = v;
+      try { localStorage.setItem('ps.latencyOffset', String(v)); } catch (err) {} // remember it across sessions
+    };
+    // restore the saved manual offset so the user sets their interface's latency once
+    try {
+      const v = +localStorage.getItem('ps.latencyOffset') || 0;
+      S.engine.latencyOffsetMs = v;
+      if ($('lat')) $('lat').value = v;
+    } catch (e) {}
     $('btn-cal').onclick = runCalibration;
     $('btn-undo').onclick = doUndo;
     $('btn-redo').onclick = doRedo;
@@ -868,9 +879,13 @@
         if (!mod) S.timeline.splitSelected();
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         S.timeline.deleteSelected();
-      } else if (e.key === '[' || e.key === ']') {
-        const step = (e.shiftKey ? 1 : e.altKey ? 50 : 5) / 1000;
-        S.timeline.nudgeSelected(e.key === '[' ? -step : step);
+      } else if (e.code === 'BracketLeft' || e.code === 'BracketRight' || e.key === '[' || e.key === ']' || e.key === '{' || e.key === '}') {
+        // Match the physical bracket keys: with Shift held, e.key becomes '{' / '}', so the coarse
+        // (1 s) and medium (Alt = 50 ms) nudges used to never fire. Shift = 1 s, Alt = 50 ms, else 5 ms.
+        e.preventDefault();
+        const step = (e.shiftKey ? 1000 : e.altKey ? 50 : 5) / 1000;
+        const back = e.code === 'BracketLeft' || e.key === '[' || e.key === '{';
+        S.timeline.nudgeSelected(back ? -step : step);
       } else if (e.key === 'Home') {
         S.seek(0);
       }

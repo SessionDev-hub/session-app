@@ -2,6 +2,15 @@
  * "What's new" popup after updating, and the list appears in Settings -> About. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.24.8',
+    date: '2026-11-03',
+    changes: [
+      'Fixed takes landing a full second off on some audio interfaces — Session no longer trusts a bogus latency number the interface can report, so recordings line up properly.',
+      'Nudge now works with Shift and Alt: select a take and press [ or ] (Shift = 1 second, Alt = 50 ms, plain = 5 ms). The big steps actually fire now.',
+      'Recording offset (Settings → Audio) is now remembered between sessions — set your interface’s latency once and every take lines up.',
+    ],
+  },
+  {
     version: '0.24.7',
     date: '2026-11-03',
     changes: [

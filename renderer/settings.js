@@ -369,7 +369,7 @@
         '<p class="hint">Every setup has a small delay between the backing track and the mic. Measure it so your takes land on the beat.</p>' +
         '<div class="param"><label>Measured delay</label><span id="set-lat-read" class="val"></span><span></span></div>' +
         '<div class="param"><label>&nbsp;</label><button class="btn" id="set-cal">Measure with mic</button><button class="btn" id="set-cal-auto" style="margin-left:8px">Estimate (no mic)</button><span class="hint">On headphones, use Estimate — the mic can’t hear the clicks.</span></div>' +
-        '<div class="param"><label>Nudge (ms)</label><input type="number" id="set-nudge" class="txt num" step="5"><span class="hint">Fine-tune added on top of the measured delay.</span></div>';
+        '<div class="param"><label>Recording offset (ms)</label><input type="number" id="set-nudge" class="txt num" step="5"><span class="hint">Added on top of the delay above, and remembered. On an audio interface, set this once so takes land on the beat: if takes sound early use a negative number, if late use positive. (You can also nudge a selected take with [ and ] — hold Shift for 1 s, Alt for 50 ms.)</span></div>';
       body.appendChild(box);
       const read = document.getElementById('lat-readout');
       const refresh = () => (box.querySelector('#set-lat-read').textContent = (read && read.textContent) || '—');
