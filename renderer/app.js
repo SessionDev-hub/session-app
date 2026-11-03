@@ -135,7 +135,7 @@
     if (S.engine.playing) S.engine.stop();
     playFrom = S.playhead;
     try {
-      S.engine.startRecording(armed.id, S.playhead);
+      await S.engine.startRecording(armed.id, S.playhead);
     } catch (e) {
       return S.toast(e.message);
     }

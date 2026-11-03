@@ -2,6 +2,20 @@
  * "What's new" popup after updating, and the list appears in Settings -> About. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.24.4',
+    date: '2026-11-03',
+    changes: [
+      'Fixed “Nothing was recorded” for some setups: Session now makes sure the audio engine is actually running before a take starts (waking it if your system paused it), and a take that comes through with no input is kept and clearly flagged instead of vanishing.',
+    ],
+  },
+  {
+    version: '0.24.3',
+    date: '2026-11-03',
+    changes: [
+      'Fixed recorded vocals sometimes playing back sped up / higher-pitched — Session now records the mic at the engine’s sample rate so takes always play at the right speed.',
+    ],
+  },
+  {
     version: '0.24.2',
     date: '2026-11-03',
     changes: [

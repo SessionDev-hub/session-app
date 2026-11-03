@@ -8,8 +8,8 @@
     class RecProcessor extends AudioWorkletProcessor {
       process(inputs) {
         const inp = inputs[0];
-        if (inp && inp.length) {
-          let out;
+        let out;
+        if (inp && inp.length && inp[0] && inp[0].length) {
           if (inp.length === 1) out = inp[0].slice();
           else {
             const n = inp[0].length;
@@ -27,8 +27,13 @@
             }
             if (live > 1) for (let i = 0; i < n; i++) out[i] /= live;
           }
-          this.port.postMessage({ f: currentFrame, d: out });
+        } else {
+          // Input not delivering this quantum (device warming up, or a device that yields no audio).
+          // Still emit a silent block so the take keeps the right length and shows up as a (silent)
+          // take we can flag — instead of capturing zero chunks and saying "nothing was recorded".
+          out = new Float32Array(128);
         }
+        this.port.postMessage({ f: currentFrame, d: out });
         return true;
       }
     }
@@ -514,7 +519,10 @@
     async openInput(deviceId) {
       this.closeInput();
       await this.ctx.resume(); // a suspended context delivers no audio, so a take would come out empty
-      const base = { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: { ideal: 2 } };
+      // Ask the mic to deliver at the ENGINE's sample rate. With processing disabled, Chromium can
+      // otherwise hand us the mic at its own hardware rate without resampling to the context — the
+      // take then gets tagged at the (higher) context rate and plays back sped up / pitched up.
+      const base = { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: { ideal: 2 }, sampleRate: { ideal: this.ctx.sampleRate } };
       const gum = (audio) => navigator.mediaDevices.getUserMedia({ audio });
       let stream;
       try {
@@ -544,6 +552,13 @@
       input.connect(monitor);
       this.mic = { stream, source, input, analyser, monitor };
       const tr = stream.getAudioTracks()[0];
+      // Record the mic's actual rate; if the browser couldn't match it to the engine rate, warn
+      // (a mismatch here is what causes sped-up takes — the constraint above usually prevents it).
+      try {
+        const micRate = tr && tr.getSettings && tr.getSettings().sampleRate;
+        this.micSampleRate = micRate || null;
+        if (micRate && micRate !== ctx.sampleRate) console.warn('[Session] mic rate', micRate, '≠ engine rate', ctx.sampleRate, '— takes may be off-speed; tell Claude this.');
+      } catch (e) { this.micSampleRate = null; }
       if (tr) tr.addEventListener('ended', () => this.mic && this.mic.stream === stream && this.onInputLost && this.onInputLost());
       if (!this.workletReady) {
         const blobUrl = URL.createObjectURL(new Blob([RECORDER_WORKLET], { type: 'application/javascript' }));
@@ -588,9 +603,17 @@
       return !!this.rec;
     }
 
-    startRecording(trackId, fromPos) {
+    async startRecording(trackId, fromPos) {
       if (!this.mic) throw new Error('Open an input first');
       const ctx = this.ctx;
+      // The capture worklet only runs while the context is actually running. If the system left it
+      // 'suspended'/'interrupted' (device change, sleep), wake it and WAIT — otherwise the take comes
+      // out empty and you'd see "nothing was recorded".
+      try { if (ctx.state !== 'running') await ctx.resume(); } catch (e) {}
+      if (ctx.state !== 'running') throw new Error('Audio is paused by your system. Click in Session once, or re-pick your device in Settings → Audio, then record again.');
+      // Make sure the mic is still live (devices get unplugged / ids rotate).
+      const micTrack = this.mic.stream && this.mic.stream.getAudioTracks && this.mic.stream.getAudioTracks()[0];
+      if (micTrack && micTrack.readyState === 'ended') throw new Error('Your input device went away. Re-select it in Settings → Audio, then record again.');
       const node = new AudioWorkletNode(ctx, 'rec-processor', { numberOfInputs: 1, numberOfOutputs: 1, channelCountMode: 'max' });
       const silent = ctx.createGain();
       silent.gain.value = 0;
