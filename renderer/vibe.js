@@ -12,38 +12,168 @@
   /* ---------- styles ---------- */
   // tune: retune ms (0 = hard snap); levels are 0..3 (reverb 0..4)
   const T = (retune, strength = 100) => ({ retune, strength });
+  // words = genre words only (artists live in vibe-artists.js and are matched separately)
   const STYLES = [
-    { id: 'rage', label: 'Rage (Carti / Ken Carson)', words: ['carti', 'playboi', 'ken carson', 'destroy lonely', 'opium', 'rage', 'homixide', 'yeat', 'whole lotta red', 'wlr'],
+    { id: 'rage', label: 'Rage', words: ['rage', 'opium', 'whole lotta red', 'wlr', 'rage beat'],
       r: { tune: T(0), eq: { hp: 120, mud: -3, presence: 3, air: 4 }, comp: 3, deess: 2, sat: 2, chorus: 1, delay: { amt: 1, sync: '1/8' }, reverb: { amt: 1, type: 'room' } } },
-    { id: 'travis', label: 'Dark & wet (Travis)', words: ['travis', 'la flame', 'utopia', 'astroworld', 'cactus jack'],
+    { id: 'travis', label: 'Dark & wet', words: ['cactus jack', 'utopia', 'astroworld', 'dark and wet', 'dark & wet'],
       r: { tune: T(4), eq: { hp: 110, low: 1, presence: 2, air: 2 }, comp: 2, deess: 2, sat: 1, chorus: 1, delay: { amt: 2, sync: '1/4 dotted' }, reverb: { amt: 3, type: 'hall' } } },
-    { id: 'trap', label: 'Trap (Future / Thug / Gunna)', words: ['future', 'young thug', 'thugger', 'gunna', 'lil baby', '21 savage', 'savage', 'durk', 'youngboy', 'nba', 'trap', 'lil tecca', 'rod wave'],
+    { id: 'trap', label: 'Trap', words: ['trap', 'atlanta', 'atl', 'street', 'southern rap'],
       r: { tune: T(6), eq: { hp: 100, mud: -2, presence: 3, air: 2 }, comp: 2, deess: 2, sat: 1, delay: { amt: 1, sync: '1/8 dotted' }, reverb: { amt: 1, type: 'plate' } } },
-    { id: 'melodic', label: 'Melodic emo (Juice WRLD)', words: ['juice', 'wrld', 'emo', 'xxx', 'xxxtentacion', 'laroi', 'iann dior', 'melodic', 'sad', 'lil peep', 'peep'],
+    { id: 'melodic', label: 'Melodic emo', words: ['emo', 'emo rap', 'melodic', 'sad', 'sad rap', 'heartbreak rap', 'soundcloud'],
       r: { tune: T(12), eq: { hp: 100, presence: 2, air: 3 }, comp: 2, deess: 2, chorus: 1, delay: { amt: 2, sync: '1/8 dotted' }, reverb: { amt: 2, type: 'hall' } } },
-    { id: 'rnb', label: 'Smooth R&B (Drake / PND)', words: ['drake', 'pnd', 'partynextdoor', 'party next door', 'bryson', 'tiller', 'weeknd', 'sza', 'brent', 'r&b', 'rnb', 'r and b', 'smooth', 'chris brown', 'summer walker'],
+    { id: 'rnb', label: 'Smooth R&B', words: ['r&b', 'rnb', 'r and b', 'smooth', 'trapsoul', 'slow jam', 'love song'],
       r: { tune: T(30, 90), eq: { hp: 90, low: 1, mud: -2, presence: 1, air: 3 }, comp: 2, deess: 2, chorus: 1, delay: { amt: 1, sync: '1/4' }, reverb: { amt: 2, type: 'plate' } } },
-    { id: 'uzi', label: 'Bright & bouncy (Uzi)', words: ['uzi', 'lil uzi', 'eternal atake'],
+    { id: 'uzi', label: 'Bright & bouncy', words: ['bouncy', 'eternal atake', 'hyper', 'energetic'],
       r: { tune: T(2), eq: { hp: 110, presence: 3, air: 4 }, comp: 2, deess: 2, sat: 1, chorus: 2, delay: { amt: 1, sync: '1/16' }, reverb: { amt: 1, type: 'plate' } } },
-    { id: 'robot', label: 'Robot / 808s', words: ['robot', 'robotic', 'vocoder', '808s', 'heartbreak', 'kanye', 'ye ', 't-pain', 'tpain', 't pain'],
+    { id: 'robot', label: 'Robot / 808s', words: ['robot', 'robotic', 'vocoder', '808s', 'heartbreak', 't-pain', 'tpain', 't pain'],
       r: { tune: T(0), eq: { hp: 120, presence: 2, air: 2 }, comp: 2, deess: 1, chorus: 2, delay: { amt: 1, sync: '1/4' }, reverb: { amt: 2, type: 'hall' } } },
-    { id: 'pop', label: 'Clean pop / radio', words: ['pop', 'clean', 'radio ready', 'polished', 'professional', 'ariana', 'billie', 'taylor', 'bieber', 'mainstream', 'studio quality'],
+    { id: 'pop', label: 'Clean pop / radio', words: ['pop', 'radio ready', 'polished', 'professional', 'mainstream', 'studio quality', 'commercial'],
       r: { tune: T(40, 80), eq: { hp: 90, mud: -2, presence: 2, air: 3 }, comp: 2, deess: 2, delay: { amt: 1, sync: '1/4' }, reverb: { amt: 1, type: 'plate' } } },
-    { id: 'drill', label: 'Drill', words: ['drill', 'pop smoke', 'central cee', 'sheff', 'fivio', 'kay flock', 'chief keef', 'keef'],
+    { id: 'drill', label: 'Drill', words: ['drill', 'uk drill', 'ny drill', 'chicago drill', 'bronx drill', 'brooklyn drill'],
       r: { tune: T(25, 70), eq: { hp: 120, low: 2, mud: -2, presence: 3 }, comp: 3, deess: 2, sat: 2, delay: { amt: 1, sync: '1/8' }, reverb: { amt: 1, type: 'room' } } },
-    { id: 'rap', label: 'Raw rap (no tune)', words: ['kendrick', 'cole', 'eminem', 'boom bap', 'lyrical', 'hip hop', 'hip-hop', 'rap vocal', 'rapping', 'nas', 'jay-z'],
+    { id: 'rap', label: 'Raw rap (no tune)', words: ['boom bap', 'lyrical', 'hip hop', 'hip-hop', 'rap vocal', 'rapping', 'conscious', 'old school rap', '90s rap', 'underground rap'],
       r: { tune: null, eq: { hp: 100, mud: -2, presence: 3, air: 1 }, comp: 3, deess: 2, sat: 1, reverb: { amt: 1, type: 'room' } } },
-    { id: 'phone', label: 'Lo-fi phone voice', words: ['lofi', 'lo-fi', 'lo fi', 'phone', 'telephone', 'radio voice', 'walkie', 'old school', 'vintage', 'megaphone', 'intro voice'],
+    { id: 'femrap', label: 'Female rap', words: ['female rap', 'femrap', 'girl rap', 'baddie'],
+      r: { tune: T(25, 80), eq: { hp: 110, mud: -2, presence: 3, air: 3 }, comp: 3, deess: 2, sat: 1, delay: { amt: 1, sync: '1/8' }, reverb: { amt: 1, type: 'plate' } } },
+    { id: 'phone', label: 'Lo-fi phone voice', words: ['lofi', 'lo-fi', 'lo fi', 'phone', 'telephone', 'radio voice', 'walkie', 'old school', 'vintage', 'megaphone', 'intro voice', 'phonk', 'memphis'],
       r: { tune: null, phone: true, comp: 2, sat: 2, reverb: { amt: 1, type: 'room' } } },
     { id: 'adlibs', label: 'Ad-libs / backgrounds', words: ['adlib', 'ad-lib', 'ad lib', 'adlibs', 'background vocal', 'backgrounds', 'bgv', 'doubles', 'stacks', 'harmonies', 'harmony'],
       r: { tune: T(8), eq: { hp: 200, presence: 1, air: 3 }, comp: 2, deess: 2, chorus: 2, delay: { amt: 2, sync: '1/8' }, reverb: { amt: 2, type: 'hall' } } },
-    { id: 'dreamy', label: 'Dreamy / spacey', words: ['dreamy', 'ethereal', 'spacey', 'spacy', 'ambient', 'floaty', 'heavenly', 'angelic', 'cloud'],
+    { id: 'dreamy', label: 'Dreamy / spacey', words: ['dreamy', 'ethereal', 'spacey', 'spacy', 'ambient', 'floaty', 'heavenly', 'angelic', 'cloud rap', 'dream pop', 'shoegaze'],
       r: { tune: T(20, 90), eq: { hp: 120, mud: -2, air: 4 }, comp: 2, deess: 2, chorus: 2, delay: { amt: 2, sync: '1/4 dotted' }, reverb: { amt: 4, type: 'hall' } } },
     { id: 'podcast', label: 'Talking / podcast', words: ['podcast', 'talking', 'voice over', 'voiceover', 'voice-over', 'spoken', 'speech', 'stream', 'narration', 'youtube voice'],
       r: { tune: null, gate: true, mic: 'Broadcast Dynamic', eq: { hp: 90, mud: -2, presence: 2, air: 1 }, comp: 3, deess: 2 } },
+    { id: 'country', label: 'Country', words: ['country', 'nashville', 'southern', 'twang', 'americana', 'bluegrass', 'folk country'],
+      r: { tune: T(45, 75), eq: { hp: 90, low: 1, mud: -2, presence: 2, air: 2 }, comp: 2, deess: 2, delay: { amt: 1, sync: 'slap' }, reverb: { amt: 1, type: 'plate' } } },
+    { id: 'rock', label: 'Rock / pop-punk', words: ['rock', 'pop punk', 'pop-punk', 'punk', 'alternative', 'alt rock', 'grunge', 'emo rock', 'garage rock', 'band vocal'],
+      r: { tune: null, eq: { hp: 100, mud: -2, presence: 3, air: 1 }, comp: 3, deess: 1, sat: 2, delay: { amt: 1, sync: 'slap' }, reverb: { amt: 1, type: 'room' } } },
+    { id: 'metal', label: 'Metal / screams', words: ['metal', 'metalcore', 'deathcore', 'nu metal', 'scream', 'screaming', 'screamo', 'growl', 'djent', 'hardcore'],
+      r: { tune: null, eq: { hp: 120, mud: -2, presence: 3, air: 1 }, comp: 3, deess: 1, sat: 3, dirty: true, delay: { amt: 1, sync: 'slap' }, reverb: { amt: 1, type: 'room' } } },
+    { id: 'latin', label: 'Reggaeton / Latin', words: ['reggaeton', 'latin', 'latino', 'urbano', 'dembow', 'perreo', 'latin trap', 'corridos', 'corrido', 'bachata', 'salsa', 'cumbia', 'spanish'],
+      r: { tune: T(5), eq: { hp: 110, presence: 3, air: 3 }, comp: 3, deess: 2, chorus: 1, delay: { amt: 1, sync: '1/8' }, reverb: { amt: 1, type: 'plate' } } },
+    { id: 'afro', label: 'Afrobeats / dancehall', words: ['afrobeats', 'afrobeat', 'afro', 'amapiano', 'afroswing', 'afro swing', 'dancehall', 'reggae', 'soca', 'naija'],
+      r: { tune: T(8), eq: { hp: 100, low: 1, presence: 2, air: 3 }, comp: 2, deess: 2, chorus: 1, delay: { amt: 2, sync: '1/8 dotted' }, reverb: { amt: 2, type: 'plate' } } },
+    { id: 'kpop', label: 'K-pop / J-pop', words: ['kpop', 'k-pop', 'jpop', 'j-pop', 'idol', 'anime'],
+      r: { tune: T(20, 90), eq: { hp: 110, presence: 3, air: 4 }, comp: 3, deess: 3, chorus: 1, delay: { amt: 1, sync: '1/4' }, reverb: { amt: 1, type: 'plate' } } },
+    { id: 'indie', label: 'Indie / bedroom pop', words: ['indie', 'bedroom pop', 'bedroom', 'whisper', 'whispery', 'soft girl', 'sad girl', 'acoustic', 'singer songwriter', 'folk', 'intimate'],
+      r: { tune: T(60, 60), eq: { hp: 120, mud: -2, air: 2 }, comp: 1, deess: 1, sat: 1, chorus: 1, reverb: { amt: 2, type: 'room' } } },
+    { id: 'soul', label: 'Soul / big vocals', words: ['soul', 'gospel', 'church', 'choir', 'ballad', 'belting', 'big vocals', 'power ballad', 'worship', 'broadway', 'jazz', 'blues', 'neo soul', 'neo-soul'],
+      r: { tune: T(50, 70), eq: { hp: 80, low: 1, mud: -2, presence: 1, air: 3 }, comp: 2, deess: 2, delay: { amt: 1, sync: '1/4' }, reverb: { amt: 2, type: 'hall' } } },
+    { id: 'pluggnb', label: 'Pluggnb', words: ['plugg', 'pluggnb', 'plugg n b', 'plug n b', 'pluggn', 'jerk music'],
+      r: { tune: T(3), eq: { hp: 130, mud: -3, presence: 2, air: 5 }, comp: 2, deess: 2, chorus: 2, delay: { amt: 2, sync: '1/8 dotted' }, reverb: { amt: 2, type: 'hall' } } },
+    { id: 'edm', label: 'EDM / dance', words: ['edm', 'dance', 'house', 'techno', 'trance', 'dubstep', 'drum and bass', 'dnb', 'hyperpop', 'club', 'festival', 'future bass', 'electronic'],
+      r: { tune: T(10), eq: { hp: 150, presence: 2, air: 4 }, comp: 3, deess: 2, chorus: 2, delay: { amt: 2, sync: '1/4 dotted' }, reverb: { amt: 3, type: 'hall' } } },
   ];
+  const STYLE_BY_ID = new Map(STYLES.map((x) => [x.id, x]));
   const BASE = { tune: T(20, 90), eq: { hp: 90, mud: -2, presence: 2, air: 2 }, comp: 2, deess: 2, reverb: { amt: 1, type: 'plate' } };
   V.styles = STYLES;
+
+  /* ---------- artists ---------- */
+  const esc = (w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const TAIL = '(?:\\s*-?\\s*(?:style|vibe|type|voice|vocals?|sound|inspired|esque|type beat))';
+  let artistRx = null;
+  function compileArtists() {
+    const A = S.vibeArtists || new Map();
+    artistRx = [];
+    for (const [name, style] of A) {
+      const plain = name.startsWith('~') ? name.slice(1) : name;
+      const core = esc(plain);
+      // ~names only count as "like X" / "X style" — they are also ordinary words
+      const rx = name.startsWith('~')
+        ? new RegExp('(?:(?:like|as|of|from|by)\\s+' + core + '(?=$|[^a-z0-9])|(?:^|[^a-z0-9])' + core + TAIL + ')')
+        : new RegExp('(?:^|[^a-z0-9])' + core + '(?=$|[^a-z0-9])');
+      artistRx.push({ name: plain, style, rx });
+    }
+  }
+  /** The best (longest) known artist named in `t`, or null. */
+  V.findArtist = (t) => {
+    if (!artistRx) compileArtists();
+    let best = null;
+    for (const a of artistRx) if (a.rx.test(t) && (!best || a.name.length > best.name.length)) best = a;
+    return best;
+  };
+  const titleCase = (n) => (n.length <= 3 && /^[a-z]+$/.test(n) ? n.toUpperCase() : n.replace(/(^|[\s\-.])([a-z])/g, (m, a, b) => a + b.toUpperCase()));
+
+  /** Who the person might mean when no known artist matched ("sound like Ice Kold", "Ice Kold vibe"). */
+  V.artistCandidate = (raw) => {
+    const t = String(raw || '').toLowerCase().replace(/[’']/g, '').replace(/\s+/g, ' ').trim();
+    const STOP = '(?:\\s+(?:in|but|with|and|on|key|hard|natural|more|less|a|bit|please|plus|then|for|over|at|using|tuned|that|who|when)\\b|\\s*[,.!?;:]|$)';
+    let m = t.match(new RegExp('(?:sounds?\\s+like|just\\s+like|like|in\\s+the\\s+style\\s+of|style\\s+of|voice\\s+of|vocals\\s+of|similar\\s+to)\\s+([a-z0-9$&!.\\- ]{2,40}?)' + STOP));
+    if (!m) m = t.match(/^(?:make\s+me\s+|give\s+me\s+|do\s+)?(?:a\s+)?([a-z0-9$&!.\- ]{2,30}?)\s*-?\s*(?:style|vibe|type|voice|vocals|type beat|inspired)\b/);
+    if (!m) return null;
+    let c = m[1].trim().replace(/^(the|a|an)\s+/, '');
+    if (!c || /^(me|it|this|that|him|her|them|my|a|an|the|you|real|actual|crazy|hard|soft|clean|dark|good|nice)$/.test(c) || /^(my|your|his|her|their|our|some|any|this|that|every|each)\s/.test(c)) return null;
+    return c;
+  };
+
+  /* online lookup for artists not in the list (genre tags → style), cached on this device */
+  const CACHE_KEY = 'ps.vibeLookup';
+  const cacheGet = () => { try { return JSON.parse(localStorage.getItem(CACHE_KEY)) || {}; } catch (e) { return {}; } };
+  const cachePut = (k, v) => { try { const c = cacheGet(); c[k] = v; localStorage.setItem(CACHE_KEY, JSON.stringify(c)); } catch (e) {} };
+  const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
+  /** Tags/genres from the web → one of our styles. The most-voted tag that means something wins. */
+  const tagRule = (tag) => {
+    const t = ' ' + tag.toLowerCase() + ' ';
+    const any = (...w) => w.some((x) => t.includes(x));
+    if (any('rage', 'opium')) return 'rage';
+    if (any('pluggnb', 'plugg')) return 'pluggnb';
+    if (any('phonk', 'memphis')) return 'phone';
+    if (any('drill')) return 'drill';
+    if (any('k-pop', 'kpop', 'j-pop', 'jpop', 'korean', 'japanese', 'c-pop', 'mandopop')) return 'kpop';
+    if (any('reggaeton', 'latin', 'urbano', 'corrido', 'regional mexican', 'mexican', 'bachata', 'salsa', 'cumbia', 'dembow', 'spanish', 'brazilian', 'funk carioca')) return 'latin';
+    if (any('afrobeat', 'afro', 'amapiano', 'dancehall', 'reggae', 'nigeria', 'ghana', 'soca', 'african')) return 'afro';
+    if (any('metal', 'deathcore', 'post-hardcore', 'screamo', 'djent')) return 'metal';
+    if (any('country', 'americana', 'bluegrass')) return 'country';
+    if (any('emo rap', 'emo hip hop', 'cloud rap', 'soundcloud')) return 'melodic';
+    if (any('trap')) return 'trap';
+    if (any('conscious', 'boom bap', 'east coast hip hop', 'west coast hip hop', 'jazz rap', 'abstract hip hop', 'hardcore hip hop')) return 'rap';
+    if (any('hip hop', 'hip-hop', 'rap')) return 'trap';
+    if (any('r&b', 'rnb', 'rhythm and blues')) return 'rnb';
+    if (any('gospel', 'soul', 'worship', 'christian', 'jazz', 'blues')) return 'soul';
+    if (any('indie', 'bedroom', 'folk', 'singer-songwriter', 'singer/songwriter', 'lo-fi')) return 'indie';
+    if (any('punk', 'rock', 'grunge', 'alternative', 'emo')) return 'rock';
+    if (any('electronic', 'edm', 'house', 'techno', 'dance', 'dubstep', 'trance', 'hyperpop', 'drum and bass')) return 'edm';
+    if (any('ambient', 'dream pop', 'shoegaze', 'psychedelia')) return 'dreamy';
+    if (any('pop')) return 'pop';
+    return null;
+  };
+  V.styleFromTags = (tags, gender) => {
+    for (const tag of tags.slice(0, 8)) {
+      let s = tagRule(tag);
+      if (!s) continue;
+      if (gender === 'female' && (s === 'trap' || s === 'rap')) s = 'femrap';
+      return s;
+    }
+    return null;
+  };
+  /** Look an unknown artist up online: MusicBrainz genre tags, then iTunes genre. → { name, style } | null */
+  V.lookupArtist = async (q) => {
+    const key = q.toLowerCase().trim();
+    const cached = cacheGet()[key];
+    if (cached !== undefined) return cached;
+    let out = null;
+    try {
+      const r = await withTimeout(fetch('https://musicbrainz.org/ws/2/artist?fmt=json&limit=3&query=' + encodeURIComponent('artist:"' + key + '"')), 6000);
+      const j = await r.json();
+      const a = (j.artists || []).find((x) => (x.score || 0) >= 85);
+      if (a) {
+        const tags = [...(a.genres || []), ...(a.tags || [])].sort((x, y) => (y.count || 0) - (x.count || 0)).map((x) => x.name);
+        const style = V.styleFromTags(tags, (a.gender || '').toLowerCase());
+        if (style) out = { name: a.name, style, via: tags.slice(0, 3).join(', ') };
+      }
+    } catch (e) {}
+    if (!out) {
+      try {
+        const r = await withTimeout(fetch('https://itunes.apple.com/search?entity=musicArtist&limit=3&term=' + encodeURIComponent(key)), 6000);
+        const j = await r.json();
+        const a = (j.results || []).find((x) => x.artistName && x.artistName.toLowerCase().replace(/[^a-z0-9]/g, '') === key.replace(/[^a-z0-9]/g, '')) || (j.results || [])[0];
+        if (a && a.primaryGenreName) { const style = V.styleFromTags([a.primaryGenreName]); if (style) out = { name: a.artistName, style, via: a.primaryGenreName }; }
+      } catch (e) {}
+    }
+    if (out || navigator.onLine !== false) cachePut(key, out); // don't cache "not found" while offline
+    return out;
+  };
 
   const blank = () => ({ tune: null, eq: { hp: 80, low: 0, mud: 0, presence: 0, air: 0 }, comp: 0, deess: 0, sat: 0, dirty: false, chorus: 0, delay: { amt: 0, sync: '1/4' }, reverb: { amt: 0, type: 'plate' }, phone: false, gate: false, mic: null, key: null, style: null });
   const fromStyle = (r) => {
@@ -78,17 +208,24 @@
   }
 
   /** Turn text into a recipe. `prev` is the track's last recipe (for follow-ups). */
-  V.understand = (text, prev, projectKey) => {
+  const norm = (raw) => ' ' + String(raw || '').toLowerCase().replace(/[’']/g, '').replace(/auto[\s-]?tune/g, 'autotune').replace(/\s+/g, ' ').trim() + ' ';
+  V.understand = (text, prev, projectKey, opts = {}) => {
     const raw = String(text || '').trim();
-    const t = ' ' + raw.toLowerCase().replace(/[’']/g, '').replace(/auto[\s-]?tune/g, 'autotune').replace(/\s+/g, ' ') + ' ';
+    const t = norm(raw);
     const said = []; // what we understood, in plain words
     if (!raw) return { error: 'Type what you want first — e.g. “make me sound like Travis, in F minor”.' };
     if (has(t, ['remove everything', 'no effects', 'clear everything', 'remove all', 'clear chain', 'dry vocal', 'no fx'])) return { clear: true, said: ['Removed every effect from the track'] };
 
     const restart = has(t, ['start over', 'reset', 'from scratch', 'new chain', 'different vibe']);
-    const style = STYLES.find((s) => has(t, s.words));
+    // artist first (most specific), then genre words, then a looked-up artist passed in
+    const artist = V.findArtist(t);
+    let style = null, styleNote = '';
+    if (artist) { style = STYLE_BY_ID.get(artist.style); styleNote = titleCase(artist.name) + '-style vocal (' + style.label.toLowerCase() + ')'; }
+    else if (opts.looked) { style = STYLE_BY_ID.get(opts.looked.style); styleNote = opts.looked.name + '-style vocal (' + style.label.toLowerCase() + (opts.looked.via ? ', from ' + opts.looked.via : '') + ')'; }
+    else { style = STYLES.find((x) => has(t, x.words)) || null; if (style) styleNote = style.label + ' style'; }
     let r;
-    if (style) { r = fromStyle(style.r); r.style = style.id; said.push(style.label + ' style'); }
+    if (style) { r = fromStyle(style.r); r.style = style.id; said.push(styleNote); }
+    else if (opts.unknown) { r = fromStyle(BASE); r.style = 'base'; said.push(opts.offline ? 'Offline, so I couldn’t look up “' + opts.unknown + '” — built a clean vocal (add a genre like trap or R&B)' : 'Couldn’t find “' + opts.unknown + '” — built a clean vocal (add a genre like trap, R&B or drill)'); }
     else if (prev && !restart) r = fromStyle(prev);
     else { r = fromStyle(BASE); r.style = 'base'; }
 
@@ -193,8 +330,8 @@
   };
 
   /** Understand `text` and put the resulting chain on `track` (replaces its effects; Undo brings them back). */
-  V.apply = (track, text) => {
-    const res = V.understand(text, track.vibe && track.vibe.recipe, S.project.key);
+  V.apply = (track, text, opts = {}) => {
+    const res = V.understand(text, track.vibe && track.vibe.recipe, S.project.key, opts);
     if (res.error) return res;
     S.history.push();
     if (res.clear) {
@@ -210,8 +347,24 @@
     return { said: res.said, chain };
   };
 
+  /** Like apply, but first looks up an artist Session doesn't know yet (needs internet once per artist). */
+  V.applyAsync = async (track, text, onStatus) => {
+    const t = norm(text);
+    const opts = {};
+    if (!V.findArtist(t) && !STYLES.some((x) => has(t, x.words))) {
+      const c = V.artistCandidate(text);
+      if (c) {
+        if (onStatus) onStatus('Looking up “' + c + '”…');
+        const found = await V.lookupArtist(c);
+        if (found) opts.looked = found;
+        else { opts.unknown = c; opts.offline = navigator.onLine === false; }
+      }
+    }
+    return V.apply(track, text, opts);
+  };
+
   /* ---------- the window ---------- */
-  const EXAMPLES = ['Make me sound like Carti', 'Travis vibe in F minor, wetter', 'Smooth R&B like Drake', 'Hard tune in key', 'Natural pitch correction, clean pop', 'Juice WRLD melodic', 'Lo-fi phone voice', 'Ad-libs, wide and wet'];
+  const EXAMPLES = ['Make me sound like Carti', 'Travis Scott in F minor, wetter', 'Drake but brighter', 'SZA vibe', 'Bad Bunny reggaeton', 'Burna Boy', 'Morgan Wallen', 'Billie Eilish whisper', 'Hard tune in key', 'Ad-libs, wide and wet'];
   const FOLLOWUPS = ['wetter', 'less Auto-Tune', 'more Auto-Tune', 'brighter', 'darker', 'punchier', 'more delay', 'no reverb'];
 
   V.open = (track) => {
@@ -224,7 +377,7 @@
     dlg.innerHTML = `
       <div class="vibe-head"><div class="vibe-logo">✦</div><div><h3>Vocal Vibe</h3><div class="vibe-sub">Say what you want — it builds the whole vocal chain for you.</div></div><button class="btn ghost sm vibe-x" title="Close">✕</button></div>
       <label class="vibe-lbl">Track <select class="sel vibe-track"></select></label>
-      <div class="vibe-box"><textarea class="txt vibe-in" rows="2" placeholder="e.g. make me sound like Travis, hard tune in F minor, a bit wetter"></textarea><button class="btn primary vibe-go">Build</button></div>
+      <div class="vibe-box"><textarea class="txt vibe-in" rows="2" placeholder="Name any artist or vibe — e.g. sound like Travis, hard tune in F minor, a bit wetter"></textarea><button class="btn primary vibe-go">Build</button></div>
       <div class="vibe-chips vibe-ex"></div>
       <div class="vibe-out" hidden><div class="vibe-said"></div><ol class="vibe-chain"></ol>
         <div class="vibe-follow-lbl">Tweak it:</div><div class="vibe-chips vibe-fu"></div>
@@ -237,12 +390,18 @@
     const chips = (box, list, fill) => list.forEach((x) => { const b = document.createElement('button'); b.className = 'vibe-chip'; b.textContent = x; b.onclick = () => { if (fill) { input.value = x; input.focus(); } else run(x); }; box.appendChild(b); });
     chips($('.vibe-ex'), EXAMPLES, true);
     chips($('.vibe-fu'), FOLLOWUPS, false);
-    const run = (text) => {
+    let busy = false;
+    const run = async (text) => {
+      if (busy) return;
       // look the track up fresh: Undo swaps in restored track objects
       cur = S.project.tracks.find((t) => t.id === sel.value);
       if (!cur) return S.toast('That track is gone — pick another.');
-      const r = V.apply(cur, text != null ? text : input.value);
-      if (r.error) return S.toast(r.error);
+      const track = cur;
+      busy = true;
+      let r;
+      try { r = await V.applyAsync(track, text != null ? text : input.value, (msg) => { $('.vibe-out').hidden = false; $('.vibe-said').textContent = msg; $('.vibe-chain').innerHTML = ''; }); }
+      finally { busy = false; }
+      if (r.error) { if ($('.vibe-said').textContent.startsWith('Looking up')) $('.vibe-out').hidden = true; return S.toast(r.error); }
       $('.vibe-out').hidden = false;
       $('.vibe-said').textContent = 'Got it: ' + r.said.join(' · ');
       const ol = $('.vibe-chain');

@@ -7,6 +7,15 @@
  * dropped), and empties PATCH-NOTES-NEXT.txt for the next round. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.25.15',
+    date: '2026-11-04',
+    changes: [
+      'Recording latency now sets itself: the first time you record with a new mic or output, Session plays a few quiet clicks (about 3 seconds) and lines your takes up with the beat automatically. On headphones it uses your device’s own figure. You can turn this off in Settings → Audio.',
+      'Vocal Vibe now knows 2,000+ popular artists across rap, R&B, pop, drill, country, rock, metal, Latin, Afrobeats, K-pop, indie, soul, EDM and more — and if you name someone it doesn’t know yet, it looks up their genre online and matches the vibe.',
+      'Vocal Vibe has new styles: country, rock, metal, reggaeton/Latin, Afrobeats, K-pop, indie, soul, pluggnb, EDM and female rap.',
+    ],
+  },
+  {
     version: '0.25.14',
     date: '2026-11-04',
     changes: [

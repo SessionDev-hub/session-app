@@ -702,7 +702,7 @@
      * microphone hears them. Needs the input to be able to hear the output (speakers near the mic,
      * or a loopback cable). Returns { seconds, hits }.
      */
-    async calibrateLatency() {
+    async calibrateLatency(opts = {}) {
       if (!this.mic) throw new Error('Open an input first');
       const ctx = this.ctx;
       await ctx.resume();
@@ -722,8 +722,8 @@
       const cd = click.getChannelData(0);
       for (let i = 0; i < clickLen; i++) cd[i] = Math.sin((2 * Math.PI * 2000 * i) / sr) * Math.exp((-i / clickLen) * 3);
 
-      const N = 8;
-      const gap = 0.5;
+      const N = opts.n || 8;
+      const gap = opts.gap || 0.5;
       const T0 = ctx.currentTime + 0.6;
       const times = [];
       for (let i = 0; i < N; i++) {

@@ -133,6 +133,8 @@
     if (!armed) return S.toast('Arm a track first (the R button on a track)');
     if (!(await S.ensureInput())) return;
     if (S.engine.playing) S.engine.stop();
+    // Auto latency: the first time you record on a mic/output combo, measure the delay (one time)
+    if (autoLatencyOn() && needsAutoMeasure()) await autoMeasureLatency();
     playFrom = S.playhead;
     try {
       await S.engine.startRecording(armed.id, S.playhead);
@@ -469,6 +471,31 @@
     } catch (e) {}
   };
 
+  const outKey = () => (S.engine && S.engine.outputDevice) || '';
+  const saveCal = (seconds, how) => writeStore(calKey(), { seconds, sampleRate: S.ctx.sampleRate, out: outKey(), how });
+  /** Settings → Audio: "Set latency automatically" (on unless turned off). */
+  const autoLatencyOn = () => { try { return localStorage.getItem('ps.autoLatency') !== '0'; } catch (e) { return true; } };
+  S.autoLatencyOn = autoLatencyOn;
+  // nothing saved yet for this input, a different engine rate, or the output device changed since
+  function needsAutoMeasure() {
+    const saved = readStore(calKey());
+    return !saved || saved.sampleRate !== S.ctx.sampleRate || (saved.out || '') !== outKey();
+  }
+  /** Quick one-time measure (~3 s of soft clicks). Headphones (mic can't hear them) → device estimate. */
+  async function autoMeasureLatency() {
+    S.toast('One-time setup: measuring your recording delay (about 3 seconds)…');
+    try {
+      const r = await S.engine.calibrateLatency({ n: 6, gap: 0.35 });
+      saveCal(r.seconds, 'auto');
+      S.toast('Latency set automatically: ' + Math.round(r.seconds * 1000) + ' ms. Your takes will land on the beat.');
+    } catch (e) {
+      useAutoLatency(true);
+      S.toast('Latency set automatically from your device: ' + Math.round(S.engine.calibrated * 1000) + ' ms (the mic didn’t hear the test clicks, which is normal on headphones).');
+    }
+    updateLatencyReadout();
+  }
+  S.autoMeasureLatency = autoMeasureLatency;
+
   function updateLatencyReadout() {
     const el = $('lat-readout');
     const measured = S.engine.calibrated != null;
@@ -491,7 +518,7 @@
     // Cap it: some interfaces report a bogus ~1 s output latency, which would misalign every take.
     const clamped = Math.min(0.25, Math.max(0, sec));
     S.engine.calibrated = clamped;
-    writeStore(calKey(), { seconds: clamped, sampleRate: S.ctx.sampleRate });
+    saveCal(clamped, 'estimate');
     updateLatencyReadout();
     if (!quiet) S.toast('Using automatic latency estimate: ' + Math.round(clamped * 1000) + ' ms');
   }
@@ -506,7 +533,7 @@
     try {
       if (S.engine.playing) S.stopTransport();
       const r = await S.engine.calibrateLatency();
-      writeStore(calKey(), { seconds: r.seconds, sampleRate: S.ctx.sampleRate });
+      saveCal(r.seconds, 'measured');
       S.toast('Latency measured: ' + Math.round(r.seconds * 1000) + ' ms');
     } catch (e) {
       S.toast(e.message);
@@ -522,6 +549,7 @@
   /** First launch only: offer to measure latency (opens the mic only if the person agrees). */
   function offerFirstRunCalibration() {
     if (readStore('ps.calOffered')) return;
+    if (autoLatencyOn()) return; // auto latency handles it on the first recording
     writeStore('ps.calOffered', true);
     const dlg = document.createElement('dialog');
     dlg.className = 'modal';

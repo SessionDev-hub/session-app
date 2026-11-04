@@ -366,11 +366,18 @@
       box.className = 'set-pane';
       box.innerHTML =
         '<div class="set-sec-t">Recording latency</div>' +
-        '<p class="hint">Every setup has a small delay between the backing track and the mic. Measure it so your takes land on the beat.</p>' +
+        '<p class="hint">Every setup has a small delay between the backing track and the mic. Session sets it for you automatically so your takes land on the beat.</p>' +
+        '<div class="su-auto-row"><span class="su-auto-l">Set latency automatically</span><label class="su-switch"><input type="checkbox" id="set-autolat"><span></span></label></div>' +
+        '<p class="hint" id="set-autolat-hint"></p>' +
         '<div class="param"><label>Measured delay</label><span id="set-lat-read" class="val"></span><span></span></div>' +
         '<div class="param"><label>&nbsp;</label><button class="btn" id="set-cal">Measure with mic</button><button class="btn" id="set-cal-auto" style="margin-left:8px">Estimate (no mic)</button><span class="hint">On headphones, use Estimate — the mic can’t hear the clicks.</span></div>' +
         '<div class="param"><label>Recording offset (ms)</label><input type="number" id="set-nudge" class="txt num" step="5"><span class="hint">Added on top of the delay above, and remembered. On an audio interface, set this once so takes land on the beat: if takes sound early use a negative number, if late use positive. (You can also nudge a selected take with [ and ] — hold Shift for 1 s, Alt for 50 ms.)</span></div>';
       body.appendChild(box);
+      const al = box.querySelector('#set-autolat'), alHint = box.querySelector('#set-autolat-hint');
+      al.checked = S.autoLatencyOn ? S.autoLatencyOn() : true;
+      const setAl = () => { alHint.textContent = al.checked ? 'The first time you record with a new mic or output, Session plays a few quiet clicks (about 3 s) and sets the delay. On headphones it uses your device’s own figure instead.' : 'Off — use Measure or the offset box below to line takes up yourself.'; };
+      setAl();
+      al.onchange = () => { try { localStorage.setItem('ps.autoLatency', al.checked ? '1' : '0'); } catch (e) {} setAl(); };
       const read = document.getElementById('lat-readout');
       const refresh = () => (box.querySelector('#set-lat-read').textContent = (read && read.textContent) || '—');
       refresh();
