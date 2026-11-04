@@ -7,6 +7,14 @@
  * fresh pending entry above it for the next round of changes. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.25.6',
+    date: '2026-11-04',
+    changes: [
+      'Beat Lab got an FL-style makeover — chunky glowing step pads grouped by the beat, channel buttons with colour tags and mute LEDs, a beat ruler, and a brighter playhead. Same simple tap-and-drag workflow.',
+      'Fixed Auto-Tune sounding crackly — smoothed the tuning so it no longer buzzes, and added a clip guard so it stays clean even pushed hard.',
+    ],
+  },
+  {
     version: '0.25.5',
     date: '2026-11-04',
     changes: [

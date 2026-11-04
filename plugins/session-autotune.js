@@ -35,6 +35,7 @@
         this.delay = 0;                // grain read offset (drives the shift)
         this.p = 1;                    // current pitch ratio (smoothed)
         this.pTarget = 1;              // ratio we are gliding toward
+        this.corrS = 0;                // smoothed dry/wet amount (de-zippered, so it can't click)
         // detection
         this.WIN = 1024;
         this.HOP = 256;
@@ -109,7 +110,11 @@
         const keyIdx = P.keyIdx[0] | 0, scaleIdx = P.scaleIdx[0] | 0;
         const strength = P.strength[0], retune = P.retune[0], mix = P.mix[0];
         const inG = Math.pow(10, P.inGain[0] / 20), outG = Math.pow(10, P.outGain[0] / 20);
-        const aRe = retune <= 0.5 ? 0 : Math.exp(-1 / (sr * retune / 1000)); // per-sample glide
+        // Per-sample glide toward the target ratio. NEVER use a hard 0ms step: the target only
+        // updates every HOP (256 samples), so a 0ms "snap" re-steps the pitch ~172x/sec and buzzes.
+        // Floor it at ~2.5ms — still reads as an instant T-Pain snap, but with no stepping crackle.
+        const glideMs = Math.max(retune, 2.5);
+        const aRe = Math.exp(-1 / (sr * glideMs / 1000));
         const inL = inp[0], inR = inp.length > 1 ? inp[1] : inp[0];
         const outL = out[0], outR = out.length > 1 ? out[1] : null;
         for (let i = 0; i < n; i++) {
@@ -131,7 +136,7 @@
             this.pTarget = this.f0 ? Math.pow(ratio, strength) : 1;
           }
           // glide the ratio toward the target (retune speed)
-          this.p = aRe === 0 ? this.pTarget : aRe * this.p + (1 - aRe) * this.pTarget;
+          this.p = aRe * this.p + (1 - aRe) * this.pTarget;
           // advance the grain phase; delay drifts at (1 - p) and wraps over one grain
           this.delay = this.delay + (1 - this.p);
           this.delay = ((this.delay % G) + G) % G;
@@ -144,9 +149,13 @@
           // taps become a static comb — which colours in-tune/held/unvoiced audio. Fade the wet
           // to dry across the last ~5 cents so those parts stay clean; real corrections are full wet.
           const corr = Math.min(1, Math.abs(1 - this.p) / 0.003);
-          const w = mix * corr;
-          outL[i] = (dryL * (1 - w) + wetL * w) * outG;
-          if (outR) outR[i] = (dryR * (1 - w) + wetR * w) * outG;
+          // one-pole smooth the dry/wet amount so switching between the dry and the (phase-shifted)
+          // wet never steps — a hard change here is the main source of the crackle.
+          this.corrS += (corr - this.corrS) * 0.02;
+          const w = mix * this.corrS;
+          // soft-clip the output so a hot vocal + gain can't hard-clip into crackle
+          outL[i] = this.clip((dryL * (1 - w) + wetL * w) * outG);
+          if (outR) outR[i] = this.clip((dryR * (1 - w) + wetR * w) * outG);
           this.w = (this.w + 1) % RING;
         }
         // tell the UI the current note, a few times a second
@@ -155,6 +164,13 @@
           this.port.postMessage({ note: this.f0 ? this.note : -1, cents: this.f0 ? this.cents : 0, f0: this.f0 });
         }
         return true;
+      }
+      // transparent below ~0.9, then smoothly limits (C1-continuous, so no click at the knee)
+      clip(x) {
+        const t = 0.9;
+        if (x > t) return t + (1 - t) * Math.tanh((x - t) / (1 - t));
+        if (x < -t) return -t + (1 - t) * Math.tanh((x + t) / (1 - t));
+        return x;
       }
       // read the ring at (write - delay) with linear interpolation, scaled by a window
       tap(ring, w, delay, win) {
