@@ -390,7 +390,10 @@
       const prof = (api.me() || {}).profile || {};
       const { outgoing } = api.requests();
       if (st.discover === null) runDiscover('');
-      if (!changed('discover', [st.discover, st.discoverQ, prof.discoverable, outgoing.map((r) => r.id), api.contacts().map((c) => c.id)])) return;
+      // Light signature only — never JSON.stringify the full user objects. A big Discover payload
+      // (lots of testers, each with a full profile) could otherwise lock the UI on every render.
+      const sig = [st.discoverQ, !!prof.discoverable, st.discover === null ? 'load' : (st.discover || []).map((u) => (u && u.id) + '/' + (u && u.requested ? 1 : 0)).join(','), outgoing.map((r) => r.id).join(','), api.contacts().map((c) => c.id).join(',')];
+      if (!changed('discover', sig)) return;
       const el = pages.Discover;
       el.textContent = '';
       el.append(h('div', { style: 'display:flex;align-items:baseline;gap:10px' }, h('b', { style: 'font-size:16px', text: 'Discover Beta Testers' }),
@@ -404,13 +407,17 @@
       if (st.discover === null) { el.append(h('div', { class: 'sk-empty', text: 'Loading…' })); return; }
       if (!st.discover.length) el.append(h('div', { class: 'sk-empty', text: 'Nobody found. Try another tag — or invite your collaborators!' }));
       const friends = new Set(api.contacts().map((c) => c.id));
-      for (const u of st.discover) {
-        let b;
-        if (u.friends || friends.has(u.id)) b = [['Message', () => show('Messages', { peer: u.id }), 'normal sm']];
-        else if (u.requested || outgoing.some((r) => r.id === u.id)) b = [['Requested', () => {}, 'sm']];
-        else b = [['Add friend', async () => { try { await api.sendRequest(u.username); u.requested = true; st.sigs = {}; render(); } catch (e) { flash(e.message || String(e)); } }, 'accent sm']];
-        el.append(personRow(u, b, ((u.profile || {}).bio || '').slice(0, 140)));
+      const CAP = 80; // never build an unbounded number of rows — a huge payload would freeze the app
+      for (const u of st.discover.slice(0, CAP)) {
+        try {
+          let b;
+          if (u.friends || friends.has(u.id)) b = [['Message', () => show('Messages', { peer: u.id }), 'normal sm']];
+          else if (u.requested || outgoing.some((r) => r.id === u.id)) b = [['Requested', () => {}, 'sm']];
+          else b = [['Add friend', async () => { try { await api.sendRequest(u.username); u.requested = true; st.sigs = {}; render(); } catch (e) { flash(e.message || String(e)); } }, 'accent sm']];
+          el.append(personRow(u, b, ((u.profile || {}).bio || '').slice(0, 140)));
+        } catch (e) { /* skip a malformed entry rather than break the whole tab */ }
       }
+      if (st.discover.length > CAP) el.append(h('div', { class: 'sk-muted', style: 'padding:8px 4px', text: 'Showing the first ' + CAP + ' — search by name or tag to narrow it down.' }));
     }
 
     async function runDiscover(q) {

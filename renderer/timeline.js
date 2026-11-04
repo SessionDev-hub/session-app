@@ -1349,7 +1349,9 @@
 
     p.tracks.forEach((t, i) => {
       const y = RULER + i * ROW;
-      for (const c of t.clips) drawClip(c, t, i, y, w, off);
+      // guard per clip: one bad clip (e.g. from an opened song) must not throw out of draw and
+      // blank the whole timeline — skip it and draw the rest.
+      for (const c of t.clips) { try { drawClip(c, t, i, y, w, off); } catch (e) {} }
     });
 
     // recording preview

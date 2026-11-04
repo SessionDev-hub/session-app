@@ -431,8 +431,9 @@
       const inMeter = $('in-meter');
       if (inMeter) inMeter.style.width = (S.clamp(((inShown > 0.00003 ? 20 * Math.log10(inShown) : -90) + 60) / 60, 0, 1) * 100).toFixed(1) + '%';
     } catch (e) {
-      if (!loop._warned) { console.error('[Session] render loop error (kept alive):', e); loop._warned = true; }
-      if (S.timeline) S.timeline.dirty = true; // force a repaint attempt next frame
+      // Force ONE repaint attempt (recovers a single bad frame) — but never every frame: a persistent
+      // draw error would otherwise re-draw + re-throw at 60fps, pegging the CPU until the app crashes.
+      if (!loop._warned) { console.error('[Session] render loop error (kept alive):', e); loop._warned = true; if (S.timeline) S.timeline.dirty = true; }
     } finally {
       requestAnimationFrame(loop);
     }

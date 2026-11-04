@@ -158,9 +158,12 @@
     delete project.assetData;
     S.buffers.clear();
     for (const id of Object.keys(data)) {
-      const bytes = S.unb64(data[id]);
-      const buf = await ctx.decodeAudioData(bytes.buffer);
-      S.buffers.set(id, buf);
+      const b = data[id]; data[id] = null; // drop the base64 as we go so a big song doesn't pile it all up in memory
+      try {
+        const bytes = S.unb64(b);
+        const buf = await ctx.decodeAudioData(bytes.buffer);
+        S.buffers.set(id, buf);
+      } catch (e) { /* skip audio that won't decode rather than fail the whole open */ }
     }
     for (const t of project.tracks) t.clips = t.clips.filter((c) => S.buffers.has(c.asset));
     return project;
