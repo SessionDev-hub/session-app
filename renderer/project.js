@@ -106,7 +106,8 @@
     for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
     return btoa(s);
   };
-  S.unb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  // plain loop: Uint8Array.from(str, fn) runs a callback per byte and was very slow/memory-hungry on big songs
+  S.unb64 = (s) => { const bin = atob(s); const n = bin.length, u = new Uint8Array(n); for (let i = 0; i < n; i++) u[i] = bin.charCodeAt(i); return u; };
   // base64, yielding periodically so a large buffer doesn't block the UI (for live collab)
   S.b64Chunked = async (buf) => {
     const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);

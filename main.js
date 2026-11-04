@@ -132,6 +132,25 @@ function createWindow() {
   win.once('ready-to-show', () => win.show());
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
   updates.initAutoUpdate(win, app.isPackaged);
+
+  // If the page process ever dies (out of memory, GPU fault…), don't leave a dead dark window:
+  // reload Session. If it keeps crashing right away, stop looping and tell the user instead.
+  let crashes = [];
+  win.webContents.on('render-process-gone', (_e, details) => {
+    if (!details || details.reason === 'clean-exit' || win.isDestroyed()) return;
+    const now = Date.now();
+    crashes = crashes.filter((t) => now - t < 60000);
+    crashes.push(now);
+    try { console.error('[Session] renderer gone:', details.reason, details.exitCode); } catch (e) {}
+    if (crashes.length <= 2) { win.loadFile(path.join(__dirname, 'renderer', 'index.html')); return; }
+    dialog.showMessageBox(win, {
+      type: 'error',
+      title: 'Session',
+      message: 'Session ran into a problem and had to restart.',
+      detail: 'It crashed a few times in a row (' + details.reason + '). Your songs saved in the app are safe. Try restarting Session; if it keeps happening, send this message to the team.',
+      buttons: ['Reload', 'Quit'],
+    }).then((r) => { if (r.response === 0) { crashes = []; win.loadFile(path.join(__dirname, 'renderer', 'index.html')); } else app.quit(); }).catch(() => {});
+  });
 }
 
 ipcMain.handle('update:install', () => updates.quitAndInstall());

@@ -7,12 +7,13 @@
  * fresh pending entry above it for the next round of changes. */
 window.__PATCH_NOTES__ = [
   {
-    version: '0.25.11',
+    version: '0.25.12',
     date: '2026-11-04',
     changes: [
       'Fixed Live Collab freezing the whole app when you start or join a session — sending the project and sharing audio no longer lock up the UI.',
       'Fixed the app pegging the CPU and crashing — a single render hiccup could spin at full speed; it now recovers instead of locking up.',
-      'Opening a saved song no longer white-screens — it skips any audio that won’t load and keeps the rest of the song.',
+      'Fixed saved songs crashing Session to a dark screen when you open them. Songs saved in the app are now stored much more efficiently: they open in about a second instead of freezing, the Saved sessions list opens instantly, and long songs that used to fail with “Could not save in the app” now save fine. Your existing saved songs still open (and get upgraded the first time you do).',
+      'If Session ever crashes, it now reloads itself instead of leaving a blank window.',
       'Messages are back to the classic Vault panel (Soundcheck is gone) — it ran smoother. It now reconnects by itself if The Vault drops instead of getting stuck on “Lost connection to The Vault”.',
     ],
   },

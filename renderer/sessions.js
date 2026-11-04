@@ -5,36 +5,94 @@
   const M = (S.sessions = { currentId: null });
   const DBN = 'session-projects';
   const STORE = 'projects';
+  const META = 'meta';
 
-  /* ---------- IndexedDB ---------- */
+  /* ---------- IndexedDB ----------
+   * Two stores:
+   *   projects — the full song. New format (v:2) keeps the arrangement as small JSON and every take as
+   *              a binary WAV Blob (no giant base64 strings: those hit the ~133 MB value cap on save and
+   *              ran the app out of memory on open). Old records ({ data: <packed JSON string> }) still open.
+   *   meta     — just { id, name, updated } so the Saved sessions list never loads any audio. */
   let dbp = null;
   function db() {
     if (dbp) return dbp;
     dbp = new Promise((res, rej) => {
       let req;
-      try { req = indexedDB.open(DBN, 1); } catch (e) { return rej(e); }
-      req.onupgradeneeded = () => { if (!req.result.objectStoreNames.contains(STORE)) req.result.createObjectStore(STORE, { keyPath: 'id' }); };
+      try { req = indexedDB.open(DBN, 2); } catch (e) { return rej(e); }
+      req.onupgradeneeded = () => {
+        const d = req.result;
+        if (!d.objectStoreNames.contains(STORE)) d.createObjectStore(STORE, { keyPath: 'id' });
+        if (!d.objectStoreNames.contains(META)) d.createObjectStore(META, { keyPath: 'id' });
+      };
       req.onsuccess = () => res(req.result);
       req.onerror = () => rej(req.error);
     });
     return dbp;
   }
-  function tx(mode, fn) {
+  function tx(stores, mode, fn) {
     return db().then((d) => new Promise((res, rej) => {
-      const t = d.transaction(STORE, mode);
+      const t = d.transaction(stores, mode);
       let out;
-      Promise.resolve(fn(t.objectStore(STORE))).then((v) => (out = v));
+      Promise.resolve(fn(t)).then((v) => (out = v));
       t.oncomplete = () => res(out);
       t.onerror = () => rej(t.error);
       t.onabort = () => rej(t.error);
     }));
   }
   const reqP = (r) => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+  const breathe = () => new Promise((r) => setTimeout(r));
 
-  M.list = () => tx('readonly', (s) => reqP(s.getAll())).then((r) => (r || []).sort((a, b) => (b.updated || 0) - (a.updated || 0))).catch(() => []);
-  M.getOne = (id) => tx('readonly', (s) => reqP(s.get(id)));
-  M.remove = (id) => tx('readwrite', (s) => s.delete(id));
-  const putRec = (rec) => tx('readwrite', (s) => s.put(rec));
+  /** List names only. Older saves made before the meta store existed get indexed once, one at a time. */
+  M.list = async () => {
+    try {
+      const [metas, keys] = await tx([STORE, META], 'readonly', (t) => Promise.all([reqP(t.objectStore(META).getAll()), reqP(t.objectStore(STORE).getAllKeys())]));
+      const have = new Set(metas.map((m) => m.id));
+      for (const id of keys) {
+        if (have.has(id)) continue;
+        const rec = await tx([STORE], 'readonly', (t) => reqP(t.objectStore(STORE).get(id)));
+        if (!rec) continue;
+        const m = { id, name: rec.name || 'Untitled Session', updated: rec.updated || 0 };
+        await tx([META], 'readwrite', (t) => t.objectStore(META).put(m));
+        metas.push(m);
+        await breathe();
+      }
+      return metas.sort((a, b) => (b.updated || 0) - (a.updated || 0));
+    } catch (e) { return []; }
+  };
+  M.getOne = (id) => tx([STORE], 'readonly', (t) => reqP(t.objectStore(STORE).get(id)));
+  M.remove = (id) => tx([STORE, META], 'readwrite', (t) => { t.objectStore(STORE).delete(id); t.objectStore(META).delete(id); });
+  async function rename(id, name) {
+    const rec = await M.getOne(id);
+    if (!rec) return;
+    rec.name = name;
+    await tx([STORE, META], 'readwrite', (t) => { t.objectStore(STORE).put(rec); t.objectStore(META).put({ id, name, updated: rec.updated || Date.now() }); });
+  }
+
+  /** Every asset the song actually uses (track clips + custom Beat Lab sounds). */
+  function usedAssets() {
+    const used = new Set(S.project.tracks.flatMap((t) => (t.clips || []).map((c) => c.asset)));
+    if (S.project.beat && Array.isArray(S.project.beat.channels)) for (const c of S.project.beat.channels) if (c && c.assetId) used.add(c.assetId);
+    return used;
+  }
+  /** Write the current song in the new format. Encodes take by take without freezing the app. */
+  async function writeCurrent(id, name) {
+    const used = usedAssets();
+    const assets = {};
+    for (const a of used) if (S.project.assets[a]) assets[a] = S.project.assets[a];
+    const project = JSON.stringify(Object.assign({}, S.project, { assets }));
+    const audio = {};
+    for (const a of used) {
+      const buf = S.buffers.get(a);
+      if (!buf) continue;
+      audio[a] = new Blob([await S.encodeWavChunked(buf, { float: true })], { type: 'audio/wav' }); // float = lossless
+      await breathe();
+    }
+    const updated = Date.now();
+    await tx([STORE, META], 'readwrite', (t) => {
+      t.objectStore(STORE).put({ id, name, updated, v: 2, project, audio });
+      t.objectStore(META).put({ id, name, updated });
+    });
+  }
 
   /* ---------- save / open ---------- */
   /** Save the current project into the app. Overwrites the one it was opened from, or makes a new one. */
@@ -50,8 +108,8 @@
     }
     try {
       if (S.native && S.native.syncStates) await S.native.syncStates();
-      const data = JSON.stringify(S.packProject());
-      await putRec({ id, name: S.project.name || name, data, updated: Date.now() });
+      S.toast('Saving “' + (S.project.name || name) + '”…');
+      await writeCurrent(id, S.project.name || name);
       M.currentId = id;
       S.toast('Saved “' + (S.project.name || name) + '” in the app.');
     } catch (e) {
@@ -60,16 +118,36 @@
   };
 
   M.open = async (id) => {
-    const rec = await M.getOne(id);
+    let rec = await M.getOne(id);
     if (!rec) return;
     try {
-      const project = await S.unpackProject(JSON.parse(rec.data), S.ctx);
+      S.toast('Opening “' + (rec.name || 'session') + '”…');
+      let project, legacy = false;
+      if (rec.v === 2) {
+        project = S.validateProject(JSON.parse(rec.project));
+        const audio = rec.audio || {};
+        rec = null; // let go of the record as we decode
+        S.buffers.clear();
+        for (const a of Object.keys(audio)) {
+          try { S.buffers.set(a, await S.ctx.decodeAudioData(await audio[a].arrayBuffer())); } catch (e) { /* skip a take that will not decode */ }
+          audio[a] = null;
+          await breathe();
+        }
+        for (const t of project.tracks) t.clips = t.clips.filter((c) => S.buffers.has(c.asset));
+      } else {
+        const obj = JSON.parse(rec.data);
+        rec = null;
+        project = await S.unpackProject(obj, S.ctx);
+        legacy = true;
+      }
       if (S.engine.mic) S.engine.setMonitor(null);
       S.setProject(project);
       S.refresh.structure();
       S.timeline.resize();
       M.currentId = id;
       S.toast('Opened “' + project.name + '”.');
+      // quietly upgrade an old-format save so it opens fast (and can grow) from now on
+      if (legacy) setTimeout(() => { writeCurrent(id, project.name || 'Untitled Session').catch(() => {}); }, 1500);
     } catch (e) {
       S.toast('Could not open that session: ' + (e.message || e));
     }
@@ -129,7 +207,7 @@
         const du = el('span', 'snd-d'); du.textContent = when(r.updated);
         const open = el('button', 'btn sm', 'Open'); open.onclick = async () => { await M.open(r.id); dlg.close(); };
         const ren = el('button', 'pw-ib sm', S.ui.icon('wand', 12)); ren.title = 'Rename';
-        ren.onclick = async () => { const n = await S.askText('Rename session', { value: r.name }); if (!n) return; await putRec(Object.assign({}, r, { name: n })); draw(); };
+        ren.onclick = async () => { const n = await S.askText('Rename session', { value: r.name }); if (!n) return; await rename(r.id, n); draw(); };
         const del = el('button', 'pw-ib sm', S.ui.icon('trash', 13)); del.title = 'Delete';
         del.onclick = async () => { if (!confirm('Delete “' + r.name + '” from the app? This cannot be undone.')) return; await M.remove(r.id); if (M.currentId === r.id) M.currentId = null; draw(); };
         row.append(nm, du, el('span', 'pw-sp'), open, ren, del);
