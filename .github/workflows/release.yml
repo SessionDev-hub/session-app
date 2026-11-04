@@ -34,7 +34,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
   mac:
-    runs-on: macos-latest        # independent of Windows, so one hang can't block the other
+    # Intel Mac pool: the Apple Silicon pool (macos-latest) is often out of machines ("job was not
+    # acquired by Runner"). The app is built universal, so it still runs natively on M1/M2/M3 Macs.
+    runs-on: macos-15-intel      # independent of Windows, so one hang can't block the other
     timeout-minutes: 30
     env:
       CI: 'true'

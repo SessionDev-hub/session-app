@@ -620,6 +620,17 @@ input.fader, .knob, .pk-dial, .pw-head, #mix-split { touch-action: none; }
   .pw-display, .pw.wide .pw-display { height: 130px; }
   .pw-hint { display: none; }
 }
+/* Phone held upright (Android APK can now rotate): wrap the top strip and the tabs instead of
+   letting them run off the right edge, so transport, input and every tab (Beat, Notes, Settings)
+   stay visible. Desktop windows are never this narrow, so this only affects phones/tablets. */
+@media (orientation: portrait) and (max-width: 900px) {
+  .bar.topbar { flex-wrap: wrap; overflow-x: visible; row-gap: 6px; }
+  .txt.name { flex: 1 1 110px; min-width: 0; }
+  .tabrow { flex-wrap: wrap; overflow-x: visible; row-gap: 2px; }
+  .tabrow .uitab { padding: 7px 10px; font-size: 12.5px; }
+  .tabrow .uitab-gap { display: none; }
+  #tl-headers { width: 150px; }
+}
 
 /* update banner */
 .update-bar { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 400; display: flex; align-items: center; gap: 16px; max-width: min(620px, calc(100vw - 32px)); padding: 11px 14px 11px 18px; background: rgba(24, 25, 32, 0.98); backdrop-filter: blur(16px); border: 1px solid var(--line-hi); border-radius: 13px; box-shadow: var(--shadow); animation: pop 0.16s ease-out; }

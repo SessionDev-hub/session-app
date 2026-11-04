@@ -10,7 +10,11 @@
   const host = () => window.studioHost || {};
 
   // Gate only when it's configured AND we can actually sign in (desktop with the login bridge).
-  const active = () => cfg().gate !== false && !!cfg().clientId && typeof host().discordLogin === 'function';
+  // The Beta Tester check runs on desktop only. The Android APK (and plain browser) cannot do the
+  // Discord sign-in, so gating there left people stuck on the Discord screen; the APK is only handed
+  // to testers directly, so it opens straight in.
+  const mobile = () => host().platform === 'android' || host().platform === 'web';
+  const active = () => !mobile() && cfg().gate !== false && !!cfg().clientId && typeof host().discordLogin === 'function';
 
   const readCache = () => { try { return JSON.parse(localStorage.getItem(PASS)); } catch (e) { return null; } };
   const savePass = (id) => { try { localStorage.setItem(PASS, JSON.stringify({ ts: Date.now(), id, v: 1 })); } catch (e) {} };

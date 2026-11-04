@@ -7,7 +7,7 @@
  * fresh pending entry above it for the next round of changes. */
 window.__PATCH_NOTES__ = [
   {
-    version: '0.25.12',
+    version: '0.25.13',
     date: '2026-11-04',
     changes: [
       'Fixed Live Collab freezing the whole app when you start or join a session — sending the project and sharing audio no longer lock up the UI.',
@@ -15,6 +15,8 @@ window.__PATCH_NOTES__ = [
       'Fixed saved songs crashing Session to a dark screen when you open them. Songs saved in the app are now stored much more efficiently: they open in about a second instead of freezing, the Saved sessions list opens instantly, and long songs that used to fail with “Could not save in the app” now save fine. Your existing saved songs still open (and get upgraded the first time you do).',
       'If Session ever crashes, it now reloads itself instead of leaving a blank window.',
       'Messages are back to the classic Vault panel (Soundcheck is gone) — it ran smoother. It now reconnects by itself if The Vault drops instead of getting stuck on “Lost connection to The Vault”.',
+      'Android: fixed people getting stuck on the Discord screen — the phone app now opens straight into Session.',
+      'Android: you can now turn your phone sideways or hold it upright — the top bar, tabs and Beat Lab rearrange to fit.',
     ],
   },
   {

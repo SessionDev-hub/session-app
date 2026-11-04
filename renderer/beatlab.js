@@ -75,6 +75,17 @@
     #beatlab .bl-seg button{background:transparent;border:0;color:var(--text);padding:5px 10px;cursor:pointer;font:inherit}
     #beatlab .bl-seg button.on{background:var(--accent,#8b7bff);color:#fff}
     #beatlab .bl-lbl{font-size:11px;color:var(--dim)}
+    /* phone held upright: put each channel's name/M/S/volume on one line above its pads so the pads get the full width */
+    @media (orientation: portrait) and (max-width: 900px){
+      #beatlab .bl-top{gap:8px;padding:8px 10px}
+      #beatlab .bl-rack{padding:10px}
+      #beatlab .bl-row{flex-direction:column;gap:6px;min-height:84px;max-height:132px}
+      #beatlab .bl-name{width:auto;flex-direction:row;align-items:center;gap:10px;padding:5px 10px}
+      #beatlab .bl-nrow{flex:1;min-width:0}
+      #beatlab .bl-vol{width:96px;flex:none}
+      #beatlab .bl-ruler{gap:0}
+      #beatlab .bl-rpad{width:0}
+    }
     `;
     document.head.appendChild(s);
   }
