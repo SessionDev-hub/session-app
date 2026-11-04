@@ -1369,6 +1369,23 @@
         g.stroke();
         g.fillStyle = '#ff4d5e';
         g.fillRect(x0, RULER + row * ROW + CLIP_TOP, cw, 3);
+        // live waveform: newest peak sits at the playhead, older ones run back to the left
+        const pk = r.peaks;
+        if (pk && pk.length) {
+          const xEnd = x0 + cw, top = RULER + row * ROW + CLIP_TOP + 4, hh = CLIP_H - 6, mid = top + hh / 2;
+          const perPx = 1 / (r.peakSec * TL.pps); // peaks per pixel
+          const from = Math.max(Math.floor(x0), 0), to = Math.min(Math.ceil(xEnd), w);
+          g.fillStyle = 'rgba(255,170,180,.9)';
+          for (let x = from; x < to; x++) {
+            const a = pk.length - (xEnd - x) * perPx, b = a + perPx;
+            let i0 = Math.max(0, Math.floor(a)), i1 = Math.min(pk.length, Math.ceil(b));
+            if (i1 <= i0) continue;
+            let m = 0;
+            for (let i = i0; i < i1; i++) if (pk[i] > m) m = pk[i];
+            const ah = Math.max(1, Math.min(1, m * 1.15) * hh / 2);
+            g.fillRect(x, mid - ah, 1, ah * 2);
+          }
+        }
       }
     }
 

@@ -442,6 +442,15 @@
       e.stopPropagation();
     };
     box.appendChild(add);
+    // ✦ Vocal Vibe: type what you want and it builds this track's whole chain
+    if (owner && S.vibe) {
+      const vb = document.createElement('button');
+      vb.className = 'fx-add fx-vibe';
+      vb.title = 'Vocal Vibe: type what you want (“sound like Travis, in F minor”) and it builds the whole vocal chain on ' + '"' + owner.name + '"';
+      vb.innerHTML = '<span>✦' + (compact ? '' : ' Vocal Vibe') + '</span>';
+      vb.onclick = (e) => { e.stopPropagation(); S.vibe.open(owner); };
+      box.appendChild(vb);
+    }
     return box;
   };
 })();

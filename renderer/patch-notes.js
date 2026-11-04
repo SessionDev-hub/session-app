@@ -1,22 +1,57 @@
 /* Patch notes, newest first. The matching version shows a "What's new" popup after updating, and the
  * list appears in Settings -> About.
  *
- * You don't set version numbers anymore. Keep ONE pending entry at the top whose version and date
- * are both the word NEXT (in quotes), and add your lines to it. Running ship5.cmd auto-bumps the
- * version and fills those in with the real number + today's date. After a release goes out, add a
- * fresh pending entry above it for the next round of changes. */
+ * Don't edit the version entries here by hand. Write what changed — one line per change — in
+ * PATCH-NOTES-NEXT.txt (repo root). When you run ship5.cmd, scripts/bump.js bumps the version,
+ * adds a new entry at the top with ONLY those lines (anything already listed in an older version is
+ * dropped), and empties PATCH-NOTES-NEXT.txt for the next round. */
 window.__PATCH_NOTES__ = [
+  {
+    version: '0.25.14',
+    date: '2026-11-04',
+    changes: [
+      'New: Vocal Vibe — type what you want (“make me sound like Travis, in F minor, wetter”) and Session builds the whole vocal chain for you: Auto-Tune, EQ, compression, de-esser, delay, reverb and more. Hit the orange ✦ on any track or ✦ Vocal Vibe in FX & Plugins, then tweak it with “less Auto-Tune”, “brighter”, “more delay”…',
+      'You can now see your waveform live while you record, instead of an empty red box.',
+    ],
+  },
   {
     version: '0.25.13',
     date: '2026-11-04',
     changes: [
-      'Fixed Live Collab freezing the whole app when you start or join a session — sending the project and sharing audio no longer lock up the UI.',
-      'Fixed the app pegging the CPU and crashing — a single render hiccup could spin at full speed; it now recovers instead of locking up.',
-      'Fixed saved songs crashing Session to a dark screen when you open them. Songs saved in the app are now stored much more efficiently: they open in about a second instead of freezing, the Saved sessions list opens instantly, and long songs that used to fail with “Could not save in the app” now save fine. Your existing saved songs still open (and get upgraded the first time you do).',
-      'If Session ever crashes, it now reloads itself instead of leaving a blank window.',
-      'Messages are back to the classic Vault panel (Soundcheck is gone) — it ran smoother. It now reconnects by itself if The Vault drops instead of getting stuck on “Lost connection to The Vault”.',
       'Android: fixed people getting stuck on the Discord screen — the phone app now opens straight into Session.',
       'Android: you can now turn your phone sideways or hold it upright — the top bar, tabs and Beat Lab rearrange to fit.',
+    ],
+  },
+  {
+    version: '0.25.12',
+    date: '2026-11-04',
+    changes: [
+      'Fixed saved songs crashing Session to a dark screen when you open them. Songs saved in the app are now stored much more efficiently: they open in about a second instead of freezing, the Saved sessions list opens instantly, and long songs that used to fail with “Could not save in the app” now save fine. Your existing saved songs still open (and get upgraded the first time you do).',
+      'If Session ever crashes, it now reloads itself instead of leaving a blank window.',
+    ],
+  },
+  {
+    version: '0.25.11',
+    date: '2026-11-04',
+    changes: [
+      'Fixed Live Collab still freezing when you send a session or go live from Messages.',
+      'Messages are back to the classic Vault panel (Soundcheck is gone) — it ran smoother. It now reconnects by itself if The Vault drops instead of getting stuck on “Lost connection to The Vault”.',
+    ],
+  },
+  {
+    version: '0.25.10',
+    date: '2026-11-04',
+    changes: [
+      'Fixed the app pegging the CPU and crashing — a single render hiccup could spin at full speed; it now recovers instead of locking up.',
+      'Fixed the Discover tab freezing the app — it no longer tries to draw a huge list at once (capped, with search to narrow it down).',
+      'Opening a saved song no longer white-screens — it skips any audio that won’t load and keeps the rest of the song.',
+    ],
+  },
+  {
+    version: '0.25.9',
+    date: '2026-11-04',
+    changes: [
+      'Fixed Live Collab freezing the whole app when you start or join a session — sending the project and sharing audio no longer lock up the UI.',
     ],
   },
   {

@@ -620,10 +620,21 @@
       node.connect(silent);
       silent.connect(ctx.destination);
       const chunks = [];
-      const rec = { node, silent, chunks, trackId, startPos: fromPos, firstFrame: null };
+      // peaks: one max-level value per PEAK_BLOCK samples, so the timeline can draw the take's
+      // waveform live while you record (cheap: a few hundred numbers per second).
+      const PEAK_BLOCK = 256;
+      const rec = { node, silent, chunks, trackId, startPos: fromPos, firstFrame: null, peaks: [], peakSec: PEAK_BLOCK / ctx.sampleRate, _pk: 0, _pn: 0 };
       node.port.onmessage = (e) => {
         if (rec.firstFrame === null) rec.firstFrame = e.data.f;
-        chunks.push(e.data.d);
+        const d = e.data.d;
+        chunks.push(d);
+        let pk = rec._pk, pn = rec._pn;
+        for (let i = 0; i < d.length; i++) {
+          const v = d[i] < 0 ? -d[i] : d[i];
+          if (v > pk) pk = v;
+          if (++pn === PEAK_BLOCK) { rec.peaks.push(pk); pk = 0; pn = 0; }
+        }
+        rec._pk = pk; rec._pn = pn;
       };
       this.mic.input.connect(node);
       this.rec = rec;

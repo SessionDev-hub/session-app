@@ -854,3 +854,28 @@ main.mdock-right.mv-mixer #mix-panel { width: auto; flex: 1; }
 
 .s-chains { width: 100%; margin-top: 4px; font-size: 11px; opacity: .9; }
 .s-chains:hover { opacity: 1; }
+
+/* ---------- Vocal Vibe ---------- */
+.fx-vibe { border-style: solid; border-color: rgba(255, 154, 60, 0.45); color: #ffb26b; }
+.fx-vibe:hover { color: #fff; border-color: #ff9a3c; background: rgba(255, 154, 60, 0.16); }
+.vibe-btn { color: #ffb26b; font-weight: 700; }
+dialog.modal.vibe { width: min(560px, 94vw); max-height: 90vh; overflow: auto; }
+.vibe-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.vibe-head h3 { margin: 0 !important; }
+.vibe-logo { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; font-size: 20px; color: #fff; background: linear-gradient(135deg, #ffb347, #ff6a3c); box-shadow: 0 0 24px rgba(255, 122, 60, 0.45); flex: none; }
+.vibe-sub { color: var(--dim); font-size: 12px; margin-top: 2px; }
+.vibe-x { margin-left: auto; }
+.vibe-lbl { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--dim); margin-bottom: 10px; }
+.vibe-lbl .sel { flex: 1; }
+.vibe-box { display: flex; gap: 8px; align-items: stretch; }
+.vibe-box .vibe-in { flex: 1; height: auto !important; min-height: 54px; margin: 0 !important; resize: vertical; padding: 8px 10px; font: 14px var(--font); line-height: 1.4; }
+.vibe-box .vibe-go { padding: 0 18px; }
+.vibe-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.vibe-chip { border: 1px solid var(--line-hi); background: rgba(255, 255, 255, 0.04); color: #cfd2dc; border-radius: 999px; padding: 5px 11px; font: 600 11.5px var(--font); cursor: pointer; }
+.vibe-chip:hover { border-color: #ff9a3c; color: #fff; background: rgba(255, 154, 60, 0.14); }
+.vibe-out { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 14px; }
+.vibe-said { font-weight: 700; color: #ffcf9e; font-size: 13px; margin-bottom: 8px; }
+.vibe-chain { margin: 0 0 10px; padding-left: 22px; color: #d9dbe3; font-size: 12.5px; line-height: 1.7; }
+.vibe-follow-lbl { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.08em; }
+.vibe-row { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+.vibe-note { color: var(--dim); font-size: 11.5px; }

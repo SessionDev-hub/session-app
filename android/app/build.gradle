@@ -7,8 +7,8 @@ android {
         applicationId "com.session.studio"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 2505        // raise this for every new APK (0.9.0 -> 900, 0.9.1 -> 901 ...)
-        versionName "0.25.5"
+        versionCode 2513        // raise this for every new APK (0.9.0 -> 900, 0.9.1 -> 901 ...)
+        versionName "0.25.13"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

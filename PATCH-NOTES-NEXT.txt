@@ -1,0 +1,2 @@
+# What changed in the NEXT release — one line per fix/feature, plain words.
+# Lines starting with # are ignored. ship5.cmd moves these into the patch notes and empties this file.
