@@ -256,11 +256,16 @@
 
   /* ---- room lifecycle ---- */
   C.startHosting = async () => {
-    await ensureClient();
     host = true;
     roomKey = randomHex(32); cryptoKey = null; sharedAssets.clear();
     const rid = randomId();
-    joinChannel(rid);
+    room = rid; // valid immediately so the invite can go out
+    // Connect in the BACKGROUND — a slow/flaky realtime connection (or a token still being fetched)
+    // must never stop the invite from being sent. The host joins the channel as soon as it can.
+    ensureClient().then(() => joinChannel(rid)).catch((e) => {
+      try { console.warn('[collab] host connect:', e && e.message); } catch (_) {}
+      S.toast && S.toast('Live session created — invite sent. Still connecting…');
+    });
     return { roomId: rid, roomKey };
   };
   C.join = async (rid, rkey) => {

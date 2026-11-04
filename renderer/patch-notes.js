@@ -2,6 +2,15 @@
  * "What's new" popup after updating, and the list appears in Settings -> About. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.25.1',
+    date: '2026-11-03',
+    changes: [
+      'Beat Lab: press and DRAG to paint — swipe across the drum grid or piano roll to lay down notes fast, or tap one at a time.',
+      'The Custom tab now scans your saved sounds (Your Sounds) — tap one to load it as an instrument, or import a new sound (it’s saved for next time).',
+      'Fixed live-session invites not arriving: the invite is now sent immediately and the room connects in the background, so the other person always gets the Join button.',
+    ],
+  },
+  {
     version: '0.25.0',
     date: '2026-11-03',
     changes: [

@@ -10,6 +10,7 @@
   const noteName = (n) => NOTE_NAMES[((n % 12) + 12) % 12] + (Math.floor(n / 12) - 1);
 
   let overlay = null, state = { tab: 'drums', roll: {} /* channelId -> {len} */ };
+  let paint = null; // active drag: { kind:'drum'|'roll', value, chId } — press a cell and drag to paint
 
   function style() {
     if (document.getElementById('bl-style')) return;
@@ -132,15 +133,25 @@
     nm.onclick = () => { if (confirm('Remove ' + c.name + '?')) { S.beat.removeChannel(c.id); render(); } };
     name.append(mute, nm);
     const cells = el('div', 'bl-cells'); cells.style.gridTemplateColumns = 'repeat(' + total + ',1fr)';
+    const setCell = (s, on) => { c.cells[s] = on; cells.children[s].classList.toggle('on', on); };
+    const audition = () => { if (S.ctx) try { S.beatInstruments.make(S.ctx, c).trigger(S.ctx.destination, S.ctx.currentTime, { vel: c.vol }); } catch (e) {} };
     for (let s = 0; s < total; s++) {
       const cell = el('div', 'bl-cell' + (s % 4 === 0 ? ' beat4' : '') + (c.cells[s] ? ' on' : ''));
       cell.dataset.step = s;
-      cell.onclick = () => {
-        c.cells[s] = !c.cells[s]; cell.classList.toggle('on', c.cells[s]);
-        if (c.cells[s] && S.ctx) S.beatInstruments.make(S.ctx, c).trigger(S.ctx.destination, S.ctx.currentTime, { vel: c.vol }); // audition
-      };
+      cell.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        const on = !c.cells[s]; setCell(s, on); paint = { kind: 'drum', value: on, chId: c.id };
+        if (on) audition();
+      });
       cells.appendChild(cell);
     }
+    // drag to paint across the row (press-and-drag), mouse and touch
+    cells.addEventListener('pointermove', (e) => {
+      if (!paint || paint.kind !== 'drum' || paint.chId !== c.id) return;
+      const t = document.elementFromPoint(e.clientX, e.clientY);
+      const cell = t && t.closest && t.closest('.bl-cell');
+      if (cell && cell.parentElement === cells) { const s = +cell.dataset.step; if (c.cells[s] !== paint.value) { setCell(s, paint.value); if (paint.value) audition(); } }
+    });
     row.append(name, cells);
     return row;
   }
@@ -148,25 +159,65 @@
   /* ---------- pitched editors (808 / keys / custom) ---------- */
   function instrEditor(tab) {
     const beat = B().get();
-    let ch = beat.channels.find((c) => c.type === tab);
     const wrap = el('div');
-    if (tab === 'custom' && !ch) {
-      wrap.append(el('p', 'bl-io', 'Import one of your own sounds to play as an instrument.'));
-      wrap.append(button('＋ Import a sound…', 'btn primary', importCustom));
-      return wrap;
-    }
-    if (!ch) { ch = S.beat.addChannel(tab, { name: tab === 'bass' ? '808' : 'Keys' }); }
-    wrap.append(el('p', 'bl-io', 'Click the grid to place notes. Pick a note length first.'));
-    // length segment
+    if (tab === 'custom') { wrap.append(customTab(beat.channels.find((c) => c.type === 'custom'))); return wrap; }
+    let ch = beat.channels.find((c) => c.type === tab);
+    if (!ch) ch = S.beat.addChannel(tab, { name: tab === 'bass' ? '808' : 'Keys' });
+    wrap.append(el('p', 'bl-io', 'Click the grid to place notes, or press and drag to paint. Pick a note length first.'));
+    wrap.append(rollTools(ch), pianoRoll(ch, state.roll[ch.id] = state.roll[ch.id] || { len: 2 }));
+    return wrap;
+  }
+
+  function rollTools(ch) {
     const tools = el('div'); tools.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap';
     const lenSeg = el('span', 'bl-seg');
     const st = (state.roll[ch.id] = state.roll[ch.id] || { len: 2 });
     [1, 2, 4].forEach((n) => { const b = button(n + ' step' + (n > 1 ? 's' : ''), st.len === n ? 'on' : ''); b.onclick = () => { st.len = n; lenSeg.querySelectorAll('button').forEach((x) => x.classList.remove('on')); b.classList.add('on'); }; lenSeg.appendChild(b); });
     tools.append(el('span', 'bl-lbl', 'Note length'), lenSeg, button('Clear notes', 'btn ghost sm', () => { ch.notes = []; render(); }));
-    if (tab === 'custom') tools.append(button('Replace sound', 'btn ghost sm', () => importCustom(ch)));
-    wrap.append(tools);
-    wrap.append(pianoRoll(ch, st));
+    return tools;
+  }
+
+  /* ---------- Custom tab: scan Your Sounds + import, then play on the roll ---------- */
+  function customTab(ch) {
+    const wrap = el('div');
+    wrap.append(el('p', 'bl-io', 'Pick one of your saved sounds, or import a new one, then play it on the grid.'));
+    const bar = el('div'); bar.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px';
+    bar.append(button('＋ Import a sound…', 'btn primary', () => importCustom(B().get().channels.find((c) => c.type === 'custom'))));
+    wrap.append(bar);
+    // scan the user's sound library
+    const lib = el('div'); lib.style.cssText = 'margin-bottom:12px';
+    lib.append(el('span', 'bl-lbl', 'Scanning your sounds…'));
+    wrap.append(lib);
+    if (S.sounds && S.sounds.list) {
+      S.sounds.list().then((rows) => {
+        lib.textContent = '';
+        if (!rows || !rows.length) { lib.append(el('span', 'bl-lbl', 'No saved sounds yet — import one above (it’s saved to Your Sounds).')); return; }
+        lib.append(el('div', 'bl-lbl', 'Your sounds — tap one to load it:'));
+        const grid = el('div'); grid.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin-top:6px';
+        rows.forEach((r) => { const active = ch && ch.soundId === r.id; grid.append(button((active ? '● ' : '') + r.name, 'btn ghost sm' + (active ? ' on' : ''), () => loadLibrarySound(r.id, r.name))); });
+        lib.append(grid);
+      }).catch(() => { lib.textContent = ''; });
+    }
+    if (ch && ch.assetId) {
+      wrap.append(el('p', 'bl-io', 'Playing: ' + ch.name + ' — click/drag the grid to place notes.'));
+      wrap.append(rollTools(ch), pianoRoll(ch, state.roll[ch.id] = state.roll[ch.id] || { len: 2 }));
+    } else {
+      wrap.append(el('p', 'bl-io', 'Load or import a sound to start playing it.'));
+    }
     return wrap;
+  }
+
+  async function loadLibrarySound(id, name) {
+    try {
+      const rec = await S.sounds.getOne(id);
+      if (!rec) return;
+      const buf = await S.ctx.decodeAudioData(await rec.blob.arrayBuffer());
+      const assetId = S.addAsset(name, buf);
+      let ch = B().get().channels.find((c) => c.type === 'custom');
+      if (ch) { ch.assetId = assetId; ch.name = name; ch.soundId = id; }
+      else ch = S.beat.addChannel('custom', { name, assetId, soundId: id, root: 60 });
+      render();
+    } catch (e) { S.toast && S.toast('Could not load that sound'); }
   }
 
   function pianoRoll(ch, st) {
@@ -181,36 +232,50 @@
       const prow = el('div', 'bl-prow');
       const key = el('div', 'bl-key' + (NOTE_NAMES[note % 12].includes('#') ? ' black' : ''), noteName(note));
       const cells = el('div', 'bl-pcells'); cells.style.gridTemplateColumns = 'repeat(' + total + ',1fr)';
+      const audition = (n) => { if (S.ctx) try { S.beatInstruments.make(S.ctx, ch).trigger(S.ctx.destination, S.ctx.currentTime, { note: n, vel: ch.vol, dur: st.len * S.beat.stepDur(beat) }); } catch (e) {} };
+      const setNote = (pc, n, s, on) => {
+        const ex = noteAt(n, s);
+        if (on && !ex) { ch.notes.push({ step: s, note: n, len: st.len, vel: 1 }); pc.classList.add('on'); audition(n); }
+        else if (!on && ex) { ch.notes = ch.notes.filter((x) => x !== ex); pc.classList.remove('on'); }
+      };
       for (let s = 0; s < total; s++) {
         const pc = el('div', 'bl-pc' + (s % 4 === 0 ? ' beat4' : '') + (noteAt(note, s) ? ' on' : ''));
         pc.dataset.step = s; pc.dataset.note = note;
-        pc.onclick = () => {
-          const ex = noteAt(note, s);
-          if (ex) { ch.notes = ch.notes.filter((x) => x !== ex); pc.classList.remove('on'); }
-          else {
-            ch.notes.push({ step: s, note, len: st.len, vel: 1 });
-            pc.classList.add('on');
-            if (S.ctx) S.beatInstruments.make(S.ctx, ch).trigger(S.ctx.destination, S.ctx.currentTime, { note, vel: ch.vol, dur: st.len * S.beat.stepDur(beat) }); // audition
-          }
-        };
+        pc.addEventListener('pointerdown', (e) => { e.preventDefault(); const on = !noteAt(note, s); setNote(pc, note, s, on); paint = { kind: 'roll', value: on, chId: ch.id }; });
         cells.appendChild(pc);
       }
+      // drag to paint notes (press-and-drag) across steps and pitches
+      cells.addEventListener('pointermove', (e) => {
+        if (!paint || paint.kind !== 'roll' || paint.chId !== ch.id) return;
+        const t = document.elementFromPoint(e.clientX, e.clientY);
+        const pc = t && t.closest && t.closest('.bl-pc');
+        if (pc) setNote(pc, +pc.dataset.note, +pc.dataset.step, paint.value);
+      });
       prow.append(key, cells);
       roll.appendChild(prow);
     }
     return roll;
   }
 
-  function importCustom(existing) {
+  function importCustom() {
     const i = document.createElement('input'); i.type = 'file'; i.accept = 'audio/*,.wav,.mp3,.flac,.ogg,.m4a';
     i.onchange = async () => {
       const f = i.files[0]; if (!f) return;
+      state.tab = 'custom';
+      // Save it to Your Sounds so it's scannable next time, then load it as the custom instrument.
+      if (S.sounds && S.sounds.importFiles) {
+        let rec = null;
+        try { await S.sounds.importFiles([f], (r) => { rec = r; }); } catch (e) {}
+        if (rec) return loadLibrarySound(rec.id, rec.name);
+      }
+      // fallback if the library isn't available
       try {
         const buf = await S.ctx.decodeAudioData(await f.arrayBuffer());
-        const assetId = S.addAsset(f.name.replace(/\.[^.]+$/, ''), buf);
-        if (existing) { existing.assetId = assetId; existing.name = f.name.replace(/\.[^.]+$/, ''); }
-        else S.beat.addChannel('custom', { name: f.name.replace(/\.[^.]+$/, ''), assetId, root: 60 });
-        state.tab = 'custom'; render();
+        const name = f.name.replace(/\.[^.]+$/, '');
+        const assetId = S.addAsset(name, buf);
+        let ch = B().get().channels.find((c) => c.type === 'custom');
+        if (ch) { ch.assetId = assetId; ch.name = name; } else S.beat.addChannel('custom', { name, assetId, root: 60 });
+        render();
       } catch (e) { S.toast && S.toast('Could not read that sound'); }
     };
     i.click();
@@ -243,6 +308,7 @@
   }
 
   BL.init = () => {
+    window.addEventListener('pointerup', () => { paint = null; });
     const b = document.getElementById('btn-beat');
     if (b) b.onclick = () => BL.toggle();
     try { S.on && S.on('beat-step', (s) => { if (BL.isOpen()) highlight(s); }); } catch (e) {}
