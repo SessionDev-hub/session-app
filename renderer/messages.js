@@ -37,17 +37,21 @@
     dlg.querySelector('.msg-x').onclick = () => dlg.close();
     dlg.querySelector('.msg-mix').onclick = () => { if (S.vault && S.vault.open) S.vault.open(); };
     let poll = 0, current = null, closed = false;
-    dlg.addEventListener('close', () => { closed = true; clearInterval(poll); dlg.remove(); });
+    dlg.addEventListener('close', () => { closed = true; clearInterval(poll); clearTimeout(retryT); dlg.remove(); });
     dlg.addEventListener('keydown', (e) => e.stopPropagation());
     document.body.appendChild(dlg);
     dlg.showModal();
 
+    let retryT = 0;
     function offline(msg, needInstall) {
+      // keep trying in the background so the panel recovers by itself when The Vault comes back
+      clearTimeout(retryT);
+      if (!needInstall) retryT = setTimeout(() => { if (!closed) boot(); }, 8000);
       side.innerHTML = '';
       main.innerHTML = '';
       const box = el('div', 'msg-empty');
       box.innerHTML = '<div class="msg-empty-ic">' + S.ui.icon('vault', 40) + '</div><h4>' + esc(msg) + '</h4>' +
-        '<p class="hint">Messages are end-to-end encrypted and run through The Vault on this computer.</p>';
+        '<p class="hint">Messages are end-to-end encrypted and run through The Vault on this computer.' + (needInstall ? '' : ' Reconnecting automatically…') + '</p>';
       const row = el('div', 'bg-row');
       if (needInstall) {
         const get = el('button', 'btn primary', 'Get The Vault');
@@ -219,7 +223,7 @@
         sessend.disabled = true; const prev = sessend.innerHTML; sessend.innerHTML = '…';
         try {
           if (S.native && S.native.syncStates) { try { await S.native.syncStates(); } catch (e) {} }
-          const bytes = new TextEncoder().encode(JSON.stringify(S.packProject()));
+          const bytes = new TextEncoder().encode(JSON.stringify(S.packProjectAsync ? await S.packProjectAsync() : S.packProject()));
           await sendBytes((S.project.name || 'session') + '.session', bytes, '📄 ' + (S.project.name || 'Session'));
           S.toast('Session sent — they can Open it in Session.');
         } catch (e) { S.toast(e.message || 'Could not send the session'); }
@@ -233,7 +237,7 @@
         let hosting = false;
         try {
           if (S.native && S.native.syncStates) { try { await S.native.syncStates(); } catch (e) {} }
-          const bytes = new TextEncoder().encode(JSON.stringify(S.packProject()));
+          const bytes = new TextEncoder().encode(JSON.stringify(S.packProjectAsync ? await S.packProjectAsync() : S.packProject()));
           if (!bytes.byteLength) throw new Error('Nothing to send yet.');
           if (bytes.byteLength > 25 * 1024 * 1024) throw new Error('This session is too big to send (25 MB max).');
           const r = await S.collab.startHosting();

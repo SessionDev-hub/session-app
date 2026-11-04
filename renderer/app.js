@@ -796,7 +796,6 @@
     if (S.settings) { S.settings.init(); S.settings.checkWhatsNew(); }
     if (S.vault) S.vault.init();
     if (S.messages) S.messages.init(); // repoints the Vault button to the Messages panel
-    if (S.soundcheck) S.soundcheck.init(); // Soundcheck takes over the button as the friends home
     if (S.match) S.match.init();
     if (S.sounds) S.sounds.init();
     if (S.sessions) S.sessions.init();

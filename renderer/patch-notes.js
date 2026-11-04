@@ -7,17 +7,24 @@
  * fresh pending entry above it for the next round of changes. */
 window.__PATCH_NOTES__ = [
   {
-    version: '0.25.10',
+    version: '0.25.11',
+    date: '2026-11-04',
+    changes: [
+      'Fixed Live Collab freezing the whole app when you start or join a session — sending the project and sharing audio no longer lock up the UI.',
+      'Fixed the app pegging the CPU and crashing — a single render hiccup could spin at full speed; it now recovers instead of locking up.',
+      'Opening a saved song no longer white-screens — it skips any audio that won’t load and keeps the rest of the song.',
+      'Messages are back to the classic Vault panel (Soundcheck is gone) — it ran smoother. It now reconnects by itself if The Vault drops instead of getting stuck on “Lost connection to The Vault”.',
+    ],
+  },
+  {
+    version: '0.25.8',
     date: '2026-11-04',
     changes: [
       'Beat Lab got a full FL-style makeover — now fills the screen with big glowing pads grouped by the beat, a beat ruler, and a bright playhead. Each channel has colour tags, mute + solo LEDs and its own volume; the top bar has editable BPM, swing and one-tap Clear; the piano roll adds octave scrolling and per-instrument volume. Same simple tap-and-drag workflow.',
       'Beat Lab volume now turns live — drag a channel’s slider and the sound changes instantly.',
       'Beat Lab no longer breaks with busy patterns — 4 bars with lots of channels now lays out cleanly instead of bugging out.',
-      'Fixed Live Collab freezing the whole app when you start or join a session — sending the project and sharing audio no longer lock up the UI, and a session that can’t connect now backs out with a message instead of hanging.',
+      'Live Collab: if a session can’t connect it now says so and backs out, instead of hanging.',
       'Fixed Auto-Tune sounding crackly — smoothed the tuning so it no longer buzzes, and added a clip guard so it stays clean even pushed hard.',
-      'Fixed the app pegging the CPU and crashing — a single render hiccup could spin at full speed; it now recovers instead of locking up.',
-      'Fixed the Discover tab freezing the app — it no longer tries to draw a huge list at once (capped, with search to narrow it down).',
-      'Opening a saved song no longer white-screens — it skips any audio that won’t load and keeps the rest of the song.',
     ],
   },
   {

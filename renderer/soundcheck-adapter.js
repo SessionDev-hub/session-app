@@ -79,7 +79,7 @@
         try { if (host().vaultLaunch) { const r = await host().vaultLaunch({ hidden: true }); if (r && r.ok === false && /not installed/i.test(r.error || '')) { store.err = 'The Vault isn’t installed — install it to use friends and messages.'; fire(); return; } } } catch (_) {}
         status = await waitForStatus(9000);
       }
-      if (!status) { store.err = 'Can’t reach The Vault. Open it and try again.'; fire(); return; }
+      if (!status) { store.err = 'Can’t reach The Vault. Open it and try again.'; fire(); setTimeout(() => { if (!closed && !store.ready) boot(); }, 10000); return; }
       if (!status.signedIn) { store.err = 'Open The Vault and sign in with Discord, then come back.'; fire(); return; }
       store.me = status.me || store.me;
       store.err = '';
@@ -97,10 +97,19 @@
       }
       return null;
     }
+    // if The Vault went away, quietly try to start it again (at most every 20s)
+    let lastRelaunch = 0;
+    function relaunchVault() {
+      if (Date.now() - lastRelaunch < 20000) return;
+      lastRelaunch = Date.now();
+      try { if (host().vaultLaunch) host().vaultLaunch({ hidden: true }).catch(() => {}); } catch (e) {}
+    }
     async function sync() {
       let data;
       try { data = await bridge('GET', '/sync'); }
-      catch (e) { if (e.offline) { store.ready = false; store.err = 'Lost connection to The Vault.'; } return; }
+      catch (e) { if (e.offline) { store.ready = false; store.err = 'Lost connection to The Vault — reconnecting…'; relaunchVault(); } return; }
+      // back online: clear the error so the UI recovers by itself (it used to stay stuck forever)
+      if (!store.ready || store.err) { store.ready = true; store.err = ''; }
       store.contacts = (data.contacts || []).map((c) => card(c));
       store.incoming = (data.incoming || []).map((c) => card(c));
       store.outgoing = (data.outgoing || []).map((c) => card(c));
