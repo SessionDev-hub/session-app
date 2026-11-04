@@ -2,6 +2,13 @@
  * "What's new" popup after updating, and the list appears in Settings -> About. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.25.2',
+    date: '2026-11-03',
+    changes: [
+      'Fixed messages not showing when you send them — your message now appears instantly, and if a send ever fails you’ll see why instead of it silently vanishing.',
+    ],
+  },
+  {
     version: '0.25.1',
     date: '2026-11-03',
     changes: [

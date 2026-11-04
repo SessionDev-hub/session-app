@@ -34,6 +34,7 @@
       unread: {},               // peerId -> count
       threads: {},              // peerId -> [msg]
       threadAt: {},             // peerId -> last fetch time
+      pending: {},              // peerId -> [optimistic messages not yet confirmed by the server]
     };
     const listeners = new Set();
     const fire = () => listeners.forEach((f) => { try { f(); } catch (e) {} });
@@ -139,7 +140,7 @@
       },
       contacts: () => store.contacts,
       requests: () => ({ incoming: store.incoming, outgoing: store.outgoing }),
-      thread(peer) { ensureThread(peer); return store.threads[peer] || []; },
+      thread(peer) { ensureThread(peer); return (store.threads[peer] || []).concat(store.pending[peer] || []); },
       unread(peer) { return peer ? (store.unread[peer] || 0) : Object.values(store.unread).reduce((a, b) => a + b, 0); },
       async markRead(peer) {
         active = peer;
@@ -151,8 +152,22 @@
 
       async send(peer, text) {
         if (!text || !peer) return;
-        await bridge('POST', '/send', { peer, text });
-        active = peer; await fetchThread(peer); fire();
+        active = peer;
+        // Optimistic: show the message immediately so it never looks like nothing happened, then
+        // confirm with the server and reconcile. If the send fails, remove it and surface why.
+        const temp = { id: 'tmp_' + S.uid(), from: (store.me && store.me.id) || 'me', at: Date.now(), payload: { text }, pending: true };
+        store.pending[peer] = (store.pending[peer] || []).concat(temp);
+        fire();
+        try {
+          await bridge('POST', '/send', { peer, text });
+        } catch (e) {
+          store.pending[peer] = (store.pending[peer] || []).filter((m) => m !== temp);
+          fire();
+          throw e; // the UI flashes the error and restores the text box
+        }
+        await fetchThread(peer);
+        store.pending[peer] = (store.pending[peer] || []).filter((m) => m !== temp); // server now has the real one
+        fire();
       },
       async sendRequest(username) {
         if (!username) throw new Error('Type a Discord username.');
