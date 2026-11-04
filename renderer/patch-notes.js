@@ -2,6 +2,16 @@
  * "What's new" popup after updating, and the list appears in Settings -> About. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.25.0',
+    date: '2026-11-03',
+    changes: [
+      'NEW — Beat Lab: make beats right inside Session. Tap out drums on a step grid, write 808 and melody lines on a mini piano roll, and drop your own sounds in on the Custom tab. Hit “Add to track” to bounce the pattern onto the timeline.',
+      'Dedicated tabs for each instrument (Drums, 808, Keys, Custom), live play with swing and 1–4 bar loops — like FL, way simpler. Open it from the 🎹 Beat button up top.',
+      'Your beat (and any custom sounds) saves inside the song and travels when you send it.',
+      'Sign-in is now fully silent: once you’ve approved Discord once, Session opens straight to the studio — it only checks your Beta role in the background and never shows a sign-in screen again.',
+    ],
+  },
+  {
     version: '0.24.8',
     date: '2026-11-03',
     changes: [

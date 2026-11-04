@@ -107,16 +107,36 @@
     return null;
   };
 
+  /* Silent re-check for a RETURNING user: they already passed once, so let them straight into the
+   * app and confirm the role in the background. Only re-gate if Discord explicitly says the role is
+   * gone — a network hiccup or a silent-login that needs interaction leaves them in on their pass. */
+  async function verifyBackground() {
+    let r;
+    try { r = await host().discordLogin({ clientId: cfg().clientId, redirect: cfg().redirect, guildId: cfg().guildId }); }
+    catch (e) { return; } // transient — keep them in
+    if (!r || !r.ok) return; // couldn't confirm silently — keep them in on the cached pass
+    const roleId = cfg().betaRoleId;
+    const hasRole = !roleId || (r.inGuild && Array.isArray(r.roles) && r.roles.indexOf(roleId) >= 0);
+    if (!hasRole) { clearPass(); mount(); return render('norole', { name: r.profile && r.profile.name, inGuild: r.inGuild }); }
+    savePass(r.profile && r.profile.id);
+    setAuth(r.token, r.profile);
+    try { if (S.account && S.account.set) S.account.set(r.profile); } catch (e) {}
+  }
+
   function start() {
     if (!active()) return; // not configured, or not a platform we can gate — let the app run
+    const c = readCache();
+    // Returning user (passed before): open the app instantly with NO screen, verify silently in the
+    // background. First-ever run has no cached pass, so it does the one-time Discord sign-in.
+    if (c) {
+      if (navigator.onLine) { verifyBackground(); return; } // silent re-check, no screen
+      if (Date.now() - c.ts < OFFLINE_GRACE) return;        // trusted recently — allow offline, no screen
+      mount(); return render('offline');                    // offline too long — reconnect to re-verify
+    }
     mount();
     render('verifying');
-    if (!navigator.onLine) {
-      const c = readCache();
-      if (c && Date.now() - c.ts < OFFLINE_GRACE) return unmount(); // trusted recently, allow offline
-      return render('offline');
-    }
-    verify(); // online: verify every launch
+    if (!navigator.onLine) return render('offline');
+    verify(); // first run, online: the one-time Discord authorization
   }
 
   G.init = start;

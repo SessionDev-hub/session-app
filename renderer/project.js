@@ -111,6 +111,10 @@
   /** Plain object for saving: the project plus every used asset as 32-bit float WAV. */
   S.packProject = () => {
     const used = new Set(S.project.tracks.flatMap((t) => t.clips.map((c) => c.asset)));
+    // keep custom Beat Lab sounds too (they live in project.beat, not on a track)
+    if (S.project.beat && Array.isArray(S.project.beat.channels)) {
+      for (const c of S.project.beat.channels) if (c && c.assetId) used.add(c.assetId);
+    }
     const assetData = {};
     for (const id of used) {
       const buf = S.buffers.get(id);

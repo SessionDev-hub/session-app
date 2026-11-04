@@ -798,6 +798,7 @@
     if (S.metronome) S.metronome.init();
     if (S.collab) S.collab.init();
     if (S.notes) S.notes.init();
+    if (S.beatlab) S.beatlab.init();
     if (S.presence) S.presence.init();
     if (S.updates) S.updates.init();
     initGridControls();
