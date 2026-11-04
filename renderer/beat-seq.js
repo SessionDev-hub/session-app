@@ -114,6 +114,9 @@
     if (!live) return;
     const ctx = S.ctx;
     const b = B.get();
+    // Guard: a zero/negative/NaN loop length (bad bpm or step count) would make the scheduler loop
+    // below never advance — an instant freeze. Bail cleanly instead.
+    if (!(live.loopDur > 0) || !(live.sd > 0)) { B.stop(); return; }
     // schedule any loop iterations whose start falls within the lookahead window
     while (live.startTime + live.nextLoop * live.loopDur < ctx.currentTime + LOOKAHEAD) {
       scheduleLoop(ctx, b, live.insts, live.dests, live.startTime + live.nextLoop * live.loopDur, live.sd);

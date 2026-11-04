@@ -419,8 +419,13 @@
       const bbtEl = $('bbt'); if (bbtEl) bbtEl.textContent = S.grid.bbt(S.playhead);
       // skip drawing whatever panel is hidden by the current view, to keep things smooth
       const view = S.workspace ? S.workspace.current() : 'both';
-      if (view !== 'mixer') S.timeline.draw();
-      if (view !== 'playlist' && S.mixer && S.mixer.updateMeters) S.mixer.updateMeters();
+      // When a full-screen overlay (Soundcheck/messages) is up, the studio is fully covered — don't
+      // waste the frame redrawing the timeline/meters underneath it.
+      const covered = S.soundcheck && S.soundcheck.isOpen && S.soundcheck.isOpen();
+      if (!covered) {
+        if (view !== 'mixer') S.timeline.draw();
+        if (view !== 'playlist' && S.mixer && S.mixer.updateMeters) S.mixer.updateMeters();
+      }
       const lvl = S.engine.inputLevel();
       inShown = Math.max(lvl, inShown * 0.93); // instant rise, smooth fall
       const inMeter = $('in-meter');

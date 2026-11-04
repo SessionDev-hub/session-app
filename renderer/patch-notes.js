@@ -6,6 +6,7 @@ window.__PATCH_NOTES__ = [
     date: '2026-11-03',
     changes: [
       'Messages now show who sent them, and your messages sit on the right while the other person’s sit on the left — like a normal chat.',
+      'Fixed freezes when going full-screen and when opening chat — the timeline was getting stuck in a resize loop. Much smoother now.',
     ],
   },
   {

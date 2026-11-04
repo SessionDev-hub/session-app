@@ -120,7 +120,15 @@
     spacer = document.getElementById('tl-spacer');
     g = canvas.getContext('2d');
     scroll.addEventListener('scroll', () => (TL.dirty = true));
-    new ResizeObserver(() => TL.resize()).observe(scroll);
+    // Coalesce resize bursts into one call per frame. TL.resize writes scroll.style.height, and
+    // scroll is the observed element — without this (and the no-op guard inside resize) that fed the
+    // observer its own change and looped forever, freezing on full-screen and when overlays reflowed.
+    let roQueued = false;
+    new ResizeObserver(() => {
+      if (roQueued) return;
+      roQueued = true;
+      requestAnimationFrame(() => { roQueued = false; TL.resize(); });
+    }).observe(scroll);
     // pointer events: mouse, pen and touch all go through the same handlers
     canvas.style.touchAction = 'none';
     canvas.addEventListener('pointerdown', touchDown, true);
@@ -175,6 +183,7 @@
 
   TL.height = () => RULER + S.project.tracks.length * ROW;
 
+  let lastRW = -1, lastRH = -1, lastRDpr = -1;
   TL.resize = () => {
     if (!canvas) return;
     const w = scroll.clientWidth;
@@ -184,12 +193,19 @@
     if (w <= 0) { TL.dirty = true; return; }
     const dpr = window.devicePixelRatio || 1;
     const h = TL.height();
-    canvas.width = Math.max(1, Math.floor(w * dpr));
-    canvas.height = Math.floor(h * dpr);
-    canvas.style.width = w + 'px';
-    canvas.style.height = h + 'px';
-    g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    scroll.style.height = h + 'px';
+    // Only touch the canvas + scroll height when the size ACTUALLY changed. These writes (esp.
+    // scroll.style.height) feed the ResizeObserver, so re-applying the same values every callback
+    // is what spun it into an infinite loop. updateExtent stays outside — the spacer width tracks
+    // project length/zoom, not window size, so it must refresh even when the size is unchanged.
+    if (w !== lastRW || h !== lastRH || dpr !== lastRDpr) {
+      lastRW = w; lastRH = h; lastRDpr = dpr;
+      canvas.width = Math.max(1, Math.floor(w * dpr));
+      canvas.height = Math.floor(h * dpr);
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+      g.setTransform(dpr, 0, 0, dpr, 0, 0);
+      scroll.style.height = h + 'px';
+    }
     updateExtent();
     TL.dirty = true;
   };

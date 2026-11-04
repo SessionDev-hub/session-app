@@ -312,6 +312,8 @@
 
   SC.close = () => {
     if (overlay) overlay.style.display = 'none';
+    // Studio was covered while the overlay was up — force one repaint so it isn't left blank.
+    try { if (S.timeline) { S.timeline.dirty = true; S.timeline.resize && S.timeline.resize(); } } catch (e) {}
   };
 
   SC.isOpen = () => !!overlay && overlay.style.display !== 'none';
