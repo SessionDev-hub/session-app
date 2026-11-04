@@ -1,6 +1,6 @@
 {
   "name": "private-studio",
-  "version": "0.25.2",
+  "version": "0.25.3",
   "description": "Session: record, create and share. A private desktop studio with VST3 support.",
   "author": "Session",
   "main": "main.js",
@@ -79,7 +79,10 @@
       "icon": "assets/icon.icns",
       "artifactName": "Session-${version}-mac-${arch}.${ext}",
       "identity": null,
-      "darkModeSupport": true
+      "darkModeSupport": true,
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Session needs your microphone to record audio."
+      }
     },
     "dmg": {
       "artifactName": "Session-${version}-mac-${arch}.${ext}"

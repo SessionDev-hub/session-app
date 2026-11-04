@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, session } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, session, systemPreferences } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { pathToFileURL, fileURLToPath } = require('url');
@@ -390,7 +390,16 @@ app.whenReady().then(() => {
   const audioOnly = (details) => !details || !details.mediaTypes || details.mediaTypes.every((t) => t === 'audio');
   const allowed = (permission, details) =>
     (permission === 'media' && audioOnly(details)) || permission === 'speaker-selection';
-  session.defaultSession.setPermissionRequestHandler((_wc, permission, cb, details) => cb(allowed(permission, details)));
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, cb, details) => {
+    // On macOS, mic capture also needs the OS-level TCC grant. Trigger/await the system
+    // prompt the first time so the page's getUserMedia actually gets audio (otherwise the
+    // mic is silently denied with no prompt — "mic not picking up").
+    if (permission === 'media' && audioOnly(details) && process.platform === 'darwin' && systemPreferences.askForMediaAccess) {
+      systemPreferences.askForMediaAccess('microphone').then((ok) => cb(ok)).catch(() => cb(true));
+      return;
+    }
+    cb(allowed(permission, details));
+  });
   session.defaultSession.setPermissionCheckHandler((_wc, permission) => permission === 'media' || permission === 'speaker-selection');
   createWindow();
   app.on('activate', () => {

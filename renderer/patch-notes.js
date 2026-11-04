@@ -2,6 +2,13 @@
  * "What's new" popup after updating, and the list appears in Settings -> About. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.25.3',
+    date: '2026-11-03',
+    changes: [
+      'Fixed the mic not picking up on Mac — Session now asks macOS for microphone access the first time you record, so your voice actually comes through.',
+    ],
+  },
+  {
     version: '0.25.2',
     date: '2026-11-03',
     changes: [
