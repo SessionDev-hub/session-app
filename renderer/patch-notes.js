@@ -1,9 +1,14 @@
-/* Patch notes, newest first. Add an entry here each release; the matching version shows a
- * "What's new" popup after updating, and the list appears in Settings -> About. */
+/* Patch notes, newest first. The matching version shows a "What's new" popup after updating, and the
+ * list appears in Settings -> About.
+ *
+ * You don't set version numbers anymore. Keep ONE pending entry at the top whose version and date
+ * are both the word NEXT (in quotes), and add your lines to it. Running ship5.cmd auto-bumps the
+ * version and fills those in with the real number + today's date. After a release goes out, add a
+ * fresh pending entry above it for the next round of changes. */
 window.__PATCH_NOTES__ = [
   {
-    version: '0.25.4',
-    date: '2026-11-03',
+    version: '0.25.5',
+    date: '2026-11-04',
     changes: [
       'Messages now show who sent them, and your messages sit on the right while the other person’s sit on the left — like a normal chat.',
       'Fixed freezes when going full-screen and when opening chat — the timeline was getting stuck in a resize loop. Much smoother now.',

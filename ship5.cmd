@@ -1,19 +1,12 @@
 @echo off
-REM Session release - reads the version from package.json automatically, makes GitHub match your
-REM local code (force push over the old divergent history), then tags it to trigger the build.
+REM Session release - bumps the version automatically, makes GitHub match your local code
+REM (force push over the old divergent history), then tags it to trigger the build.
 setlocal enabledelayedexpansion
 cd /d "%~dp0"
 
-REM --- read "version" from package.json ---
-set VER=
-for /f "tokens=2 delims=:," %%a in ('findstr /c:"\"version\"" package.json') do (
-  if not defined VER (
-    set VER=%%~a
-  )
-)
-set VER=!VER: =!
-set VER=!VER:"=!
-if "!VER!"=="" (echo [X] could not read version from package.json & pause & exit /b 1)
+echo - Bumping the version...
+for /f "delims=" %%v in ('node scripts\bump.js') do set VER=%%v
+if "!VER!"=="" (echo [X] version bump failed - screenshot this and send it to Claude. & pause & exit /b 1)
 
 echo.
 echo ==== Shipping Session v!VER! (making GitHub match your local code) ====
@@ -32,5 +25,6 @@ git push --force origin v!VER! || (echo [X] tag push failed - screenshot this an
 echo.
 echo ==== Done. Actions is building Windows + Mac for v!VER!. ====
 echo     Watch it in the Actions tab of SessionDev-hub/session-app.
+echo     For the Android app, run build-android.cmd (it uses this same version).
 echo.
 pause
