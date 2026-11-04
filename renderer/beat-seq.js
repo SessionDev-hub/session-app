@@ -23,6 +23,7 @@
     for (const c of b.channels) {
       c.vol = c.vol == null ? 0.9 : c.vol;
       c.mute = !!c.mute;
+      c.solo = !!c.solo;
       if (c.type === 'drum') {
         if (!Array.isArray(c.cells)) c.cells = new Array(total).fill(false);
         if (c.cells.length !== total) { const n = new Array(total).fill(false); for (let i = 0; i < Math.min(total, c.cells.length); i++) n[i] = !!c.cells[i]; c.cells = n; }
@@ -46,9 +47,11 @@
   /* ---------- schedule one loop of the pattern into a destination at a base time ---------- */
   function scheduleLoop(ctx, b, insts, dests, baseTime, sd) {
     const total = B.totalSteps(b);
+    const soloOn = b.channels.some((c) => c.solo); // if anything is soloed, only soloed channels play
     for (let ci = 0; ci < b.channels.length; ci++) {
       const c = b.channels[ci];
       if (c.mute) continue;
+      if (soloOn && !c.solo) continue;
       const inst = insts[ci], dest = dests[ci];
       if (c.type === 'drum') {
         for (let s = 0; s < total; s++) if (c.cells[s]) inst.trigger(dest, baseTime + stepTime(b, s, sd), { vel: c.vol });
@@ -149,13 +152,19 @@
   B.addChannel = (type, opts) => {
     const b = B.get();
     const total = B.totalSteps(b);
-    const c = Object.assign({ id: S.uid(), type, name: (opts && opts.name) || type, vol: 0.9, mute: false }, opts || {});
+    const c = Object.assign({ id: S.uid(), type, name: (opts && opts.name) || type, vol: 0.9, mute: false, solo: false }, opts || {});
     if (type === 'drum') c.cells = new Array(total).fill(false);
     else { c.notes = []; if (c.root == null) c.root = 60; }
     b.channels.push(c);
     return c;
   };
   B.removeChannel = (id) => { const b = B.get(); b.channels = b.channels.filter((c) => c.id !== id); };
+  // wipe every step/note in the pattern (keeps the channels themselves)
+  B.clear = () => {
+    const b = B.get(); const total = B.totalSteps(b);
+    for (const c of b.channels) { if (c.type === 'drum') c.cells = new Array(total).fill(false); else c.notes = []; }
+    if (live) B.restart();
+  };
   B.resize = (steps, bars) => {
     const b = B.get();
     b.steps = steps; b.bars = bars;

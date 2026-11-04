@@ -24,43 +24,51 @@
     #beatlab .bl-tab{appearance:none;border:1px solid transparent;background:transparent;color:var(--text);font:inherit;font-weight:700;padding:7px 15px;border-radius:999px;cursor:pointer}
     #beatlab .bl-tab:hover{background:rgba(255,255,255,.06)}
     #beatlab .bl-tab.on{background:var(--accent-grad,#8b7bff);color:#fff}
-    #beatlab .bl-body{flex:1;min-height:0;overflow:auto;padding:14px}
+    #beatlab .bl-body{flex:1;min-height:0;overflow:auto;padding:14px;display:flex;flex-direction:column}
     #beatlab .bl-io{font-size:11px;color:var(--dim,#8a8d99);margin:0 0 10px}
-    /* FL-style channel rack */
-    #beatlab .bl-rack{display:inline-block;min-width:100%;background:linear-gradient(180deg,#16181f,#101117);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:12px}
-    #beatlab .bl-rows{display:flex;flex-direction:column;gap:7px}
-    #beatlab .bl-row{display:flex;align-items:center;gap:10px}
-    #beatlab .bl-name{width:138px;flex:none;display:flex;align-items:center;gap:8px;font-weight:600;background:linear-gradient(180deg,#2a2d37,#1e212a);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:7px 10px;box-shadow:0 1px 0 rgba(255,255,255,.05) inset,0 2px 5px rgba(0,0,0,.35)}
-    #beatlab .bl-name .bl-dot{width:9px;height:9px;border-radius:50%;flex:none;box-shadow:0 0 7px currentColor}
-    #beatlab .bl-name .bl-nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
-    #beatlab .bl-name .bl-mute{width:18px;height:18px;flex:none;border-radius:50%;border:1px solid rgba(255,255,255,.16);background:#14161c;cursor:pointer;color:var(--dim);font-size:9px;line-height:1;box-shadow:0 1px 2px rgba(0,0,0,.5) inset}
-    #beatlab .bl-name .bl-mute.on{background:radial-gradient(circle at 50% 38%,#ff9a6b,#ff4d5e);border-color:transparent;color:#2a0f10;box-shadow:0 0 9px rgba(255,90,80,.75)}
-    #beatlab .bl-cells{display:flex;gap:4px;align-items:center}
-    #beatlab .bl-cell{width:32px;height:30px;border-radius:5px;background:linear-gradient(180deg,#191b22,#111218);border:1px solid rgba(255,255,255,.06);box-shadow:0 1px 2px rgba(0,0,0,.5) inset;cursor:pointer;transition:transform .05s}
+    #beatlab .bl-num{width:60px;background:#14161c;border:1px solid rgba(255,255,255,.14);color:var(--text);border-radius:7px;padding:5px 7px;font:inherit;text-align:center}
+    #beatlab .bl-page{flex:1;min-height:0;display:flex;flex-direction:column}
+    /* FL-style channel rack — fills the screen */
+    #beatlab .bl-rack{flex:1;min-height:0;display:flex;flex-direction:column;background:linear-gradient(180deg,#16181f,#101117);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:12px}
+    #beatlab .bl-rows{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:8px}
+    #beatlab .bl-row{flex:1 1 0;min-height:44px;max-height:98px;display:flex;align-items:stretch;gap:10px}
+    #beatlab .bl-name{width:170px;flex:none;display:flex;flex-direction:column;justify-content:center;gap:8px;font-weight:600;background:linear-gradient(180deg,#2a2d37,#1e212a);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:8px 11px;box-shadow:0 1px 0 rgba(255,255,255,.05) inset,0 2px 5px rgba(0,0,0,.35)}
+    #beatlab .bl-nrow{display:flex;align-items:center;gap:7px}
+    #beatlab .bl-dot{width:9px;height:9px;border-radius:50%;flex:none;box-shadow:0 0 7px currentColor}
+    #beatlab .bl-nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+    #beatlab .bl-led{width:19px;height:19px;flex:none;border-radius:50%;border:1px solid rgba(255,255,255,.16);background:#14161c;cursor:pointer;color:var(--dim);font-size:9px;font-weight:700;line-height:1;box-shadow:0 1px 2px rgba(0,0,0,.5) inset}
+    #beatlab .bl-mute.on{background:radial-gradient(circle at 50% 38%,#ff9a6b,#ff4d5e);border-color:transparent;color:#2a0f10;box-shadow:0 0 9px rgba(255,90,80,.75)}
+    #beatlab .bl-solo.on{background:radial-gradient(circle at 50% 38%,#8ff0b0,#36d47a);border-color:transparent;color:#0c2a17;box-shadow:0 0 9px rgba(70,220,130,.75)}
+    #beatlab .bl-vol{width:100%;height:4px;-webkit-appearance:none;appearance:none;background:rgba(255,255,255,.16);border-radius:3px;outline:none;cursor:pointer}
+    #beatlab .bl-vol::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:#cdd3e6;cursor:pointer}
+    #beatlab .bl-cells{flex:1;display:flex;gap:4px;align-items:stretch}
+    #beatlab .bl-cell{flex:1 1 0;min-width:12px;border-radius:6px;background:linear-gradient(180deg,#191b22,#111218);border:1px solid rgba(255,255,255,.06);box-shadow:0 1px 2px rgba(0,0,0,.5) inset;cursor:pointer;transition:transform .05s}
     #beatlab .bl-cell.beat4{background:linear-gradient(180deg,#22252f,#15171e)}
     #beatlab .bl-cell.grp{margin-left:12px}
-    #beatlab .bl-cell:active{transform:scale(.93)}
+    #beatlab .bl-cell:active{transform:scale(.96)}
     #beatlab .bl-cell.on{background:linear-gradient(180deg,#ffbe5c,#ff7a1f);border-color:rgba(255,190,110,.6);box-shadow:0 0 11px rgba(255,140,45,.6),0 1px 0 rgba(255,255,255,.4) inset}
     #beatlab .bl-cell.playing{outline:2px solid #fff;outline-offset:-1px}
     #beatlab .bl-cell.on.playing{box-shadow:0 0 18px rgba(255,165,65,.95),0 1px 0 rgba(255,255,255,.55) inset}
     /* beat-number ruler */
-    #beatlab .bl-ruler{display:flex;gap:10px;align-items:center;margin:0 0 9px}
-    #beatlab .bl-ruler .bl-rpad{width:138px;flex:none}
-    #beatlab .bl-rnums{display:flex;gap:4px}
-    #beatlab .bl-rn{width:32px;text-align:center;font-size:10px;color:var(--dim)}
+    #beatlab .bl-ruler{display:flex;gap:10px;align-items:center;margin:0 0 10px;flex:none}
+    #beatlab .bl-rpad{width:170px;flex:none}
+    #beatlab .bl-rnums{flex:1;display:flex;gap:4px}
+    #beatlab .bl-rn{flex:1 1 0;min-width:12px;text-align:center;font-size:10px;color:var(--dim)}
     #beatlab .bl-rn.grp{margin-left:12px}
     #beatlab .bl-rn.b1{color:var(--text);font-weight:700}
-    #beatlab .bl-add{display:flex;gap:6px;margin-top:14px;flex-wrap:wrap}
+    #beatlab .bl-add{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;flex:none}
     /* piano roll */
-    #beatlab .bl-roll{display:inline-block;background:linear-gradient(180deg,#16181f,#101117);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:10px}
-    #beatlab .bl-prow{display:flex;align-items:center;gap:8px;height:21px}
+    #beatlab .bl-roll{flex:1;min-height:0;overflow:auto;background:linear-gradient(180deg,#16181f,#101117);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:10px}
+    #beatlab .bl-rpad-k{width:52px;flex:none}
+    #beatlab .bl-rtools{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;flex:none}
+    #beatlab .bl-prow{display:flex;align-items:center;gap:10px;height:21px}
     #beatlab .bl-prow.blk{background:rgba(0,0,0,.22);border-radius:4px}
     #beatlab .bl-key{width:52px;flex:none;font-size:10.5px;color:var(--dim);text-align:right;padding-right:6px}
     #beatlab .bl-key.black{color:#767985}
-    #beatlab .bl-pcells{display:flex;gap:3px;align-items:center}
-    #beatlab .bl-pc{width:26px;height:19px;border-radius:4px;background:linear-gradient(180deg,#191b22,#111218);border:1px solid rgba(255,255,255,.05);box-shadow:0 1px 2px rgba(0,0,0,.5) inset;cursor:pointer}
+    #beatlab .bl-pcells{flex:1;display:flex;gap:4px;align-items:center}
+    #beatlab .bl-pc{flex:1 1 0;min-width:10px;height:19px;border-radius:4px;background:linear-gradient(180deg,#191b22,#111218);border:1px solid rgba(255,255,255,.05);box-shadow:0 1px 2px rgba(0,0,0,.5) inset;cursor:pointer}
     #beatlab .bl-pc.beat4{background:linear-gradient(180deg,#22252f,#15171e)}
-    #beatlab .bl-pc.grp{margin-left:10px}
+    #beatlab .bl-pc.grp{margin-left:12px}
     #beatlab .bl-pc.on{background:linear-gradient(180deg,#9aa6ff,#5c6cff);border-color:transparent;box-shadow:0 0 8px rgba(110,120,255,.6),0 1px 0 rgba(255,255,255,.3) inset}
     #beatlab .bl-pc.playing{outline:2px solid rgba(255,255,255,.75);outline-offset:-1px}
     #beatlab .bl-seg{display:inline-flex;border:1px solid var(--line-hi,rgba(255,255,255,.14));border-radius:8px;overflow:hidden}
@@ -119,10 +127,13 @@
     // swing
     const swing = el('input'); swing.type = 'range'; swing.min = 0; swing.max = 60; swing.value = Math.round((beat.swing || 0) * 100); swing.style.width = '90px';
     swing.oninput = () => { beat.swing = swing.value / 100; if (S.beat.isPlaying()) S.beat.restart(); };
+    // editable tempo, right here in Beat Lab
+    const bpm = el('input', 'bl-num'); bpm.type = 'number'; bpm.min = 20; bpm.max = 400; bpm.value = S.project.bpm || 120;
+    bpm.onchange = () => { const v = Math.max(20, Math.min(400, parseInt(bpm.value, 10) || 120)); S.project.bpm = v; bpm.value = v; if (S.tempo && S.tempo.refresh) try { S.tempo.refresh(); } catch (e) {} if (S.beat.isPlaying()) S.beat.restart(); };
+    const clear = button('Clear', 'btn ghost', () => { if (confirm('Clear the whole pattern?')) { S.beat.clear(); render(); } });
     const add = button('＋ Add to track', 'btn', addToTrack); add.id = 'bl-add-track';
-    bar.append(el('span', 'bl-title', 'Beat Lab'), play, barsSeg, el('span', 'bl-lbl', 'Swing'), swing,
-      el('span', 'bl-sp'), el('span', 'bl-lbl', (S.project.bpm || 120) + ' BPM · set in Tempo'), add,
-      button('✕ Close', 'btn ghost', BL.close));
+    bar.append(el('span', 'bl-title', 'Beat Lab'), play, el('span', 'bl-lbl', 'BPM'), bpm, barsSeg, el('span', 'bl-lbl', 'Swing'), swing,
+      el('span', 'bl-sp'), clear, add, button('✕ Close', 'btn ghost', BL.close));
     return bar;
   }
 
@@ -146,8 +157,8 @@
   function drumGrid() {
     const beat = B().get();
     const total = S.beat.totalSteps(beat);
-    const wrap = el('div');
-    wrap.append(el('p', 'bl-io', 'Tap the pads to build your beat — press and drag to paint a row. Each pad is a step; gaps mark the beats.'));
+    const wrap = el('div', 'bl-page');
+    wrap.append(el('p', 'bl-io', 'Tap the pads to build your beat — press and drag to paint a row. M = mute, S = solo, slider = volume.'));
     const rack = el('div', 'bl-rack');
     rack.append(ruler(total, 'bl-rpad'));
     const rows = el('div', 'bl-rows');
@@ -162,12 +173,19 @@
   function drumRow(c, total, idx) {
     const row = el('div', 'bl-row');
     const name = el('div', 'bl-name');
+    const nrow = el('div', 'bl-nrow');
     const dot = el('span', 'bl-dot'); dot.style.color = DOT[idx % DOT.length]; dot.style.background = 'currentColor';
-    const mute = button('M', 'bl-mute' + (c.mute ? ' on' : ''), () => { c.mute = !c.mute; mute.classList.toggle('on', c.mute); if (S.beat.isPlaying()) S.beat.restart(); });
-    mute.title = 'Mute';
     const nm = el('span', 'bl-nm'); nm.textContent = c.name; nm.title = 'Click to remove';
     nm.onclick = () => { if (confirm('Remove ' + c.name + '?')) { S.beat.removeChannel(c.id); render(); } };
-    name.append(dot, nm, mute);
+    const mute = button('M', 'bl-led bl-mute' + (c.mute ? ' on' : ''), () => { c.mute = !c.mute; mute.classList.toggle('on', c.mute); if (S.beat.isPlaying()) S.beat.restart(); });
+    mute.title = 'Mute';
+    const solo = button('S', 'bl-led bl-solo' + (c.solo ? ' on' : ''), () => { c.solo = !c.solo; solo.classList.toggle('on', c.solo); if (S.beat.isPlaying()) S.beat.restart(); });
+    solo.title = 'Solo';
+    nrow.append(dot, nm, mute, solo);
+    const vol = el('input', 'bl-vol'); vol.type = 'range'; vol.min = 0; vol.max = 100; vol.value = Math.round((c.vol == null ? 0.9 : c.vol) * 100); vol.title = 'Volume';
+    vol.oninput = () => { c.vol = vol.value / 100; };
+    vol.onchange = () => { if (S.beat.isPlaying()) S.beat.restart(); };
+    name.append(nrow, vol);
     const cells = el('div', 'bl-cells');
     const setCell = (s, on) => { c.cells[s] = on; cells.children[s].classList.toggle('on', on); };
     const audition = () => { if (S.ctx) try { S.beatInstruments.make(S.ctx, c).trigger(S.ctx.destination, S.ctx.currentTime, { vel: c.vol }); } catch (e) {} };
@@ -195,27 +213,37 @@
   /* ---------- pitched editors (808 / keys / custom) ---------- */
   function instrEditor(tab) {
     const beat = B().get();
-    const wrap = el('div');
+    const wrap = el('div', 'bl-page');
     if (tab === 'custom') { wrap.append(customTab(beat.channels.find((c) => c.type === 'custom'))); return wrap; }
     let ch = beat.channels.find((c) => c.type === tab);
     if (!ch) ch = S.beat.addChannel(tab, { name: tab === 'bass' ? '808' : 'Keys' });
-    wrap.append(el('p', 'bl-io', 'Click the grid to place notes, or press and drag to paint. Pick a note length first.'));
-    wrap.append(rollTools(ch), pianoRoll(ch, state.roll[ch.id] = state.roll[ch.id] || { len: 2 }));
+    wrap.append(el('p', 'bl-io', 'Click the grid to place notes, or press and drag to paint. Pick a note length, scroll octaves, set the volume.'));
+    wrap.append(rollTools(ch), pianoRoll(ch, state.roll[ch.id] = state.roll[ch.id] || { len: 2, oct: 0 }));
     return wrap;
   }
 
   function rollTools(ch) {
-    const tools = el('div'); tools.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap';
+    const tools = el('div', 'bl-rtools');
+    const st = (state.roll[ch.id] = state.roll[ch.id] || { len: 2, oct: 0 });
     const lenSeg = el('span', 'bl-seg');
-    const st = (state.roll[ch.id] = state.roll[ch.id] || { len: 2 });
     [1, 2, 4].forEach((n) => { const b = button(n + ' step' + (n > 1 ? 's' : ''), st.len === n ? 'on' : ''); b.onclick = () => { st.len = n; lenSeg.querySelectorAll('button').forEach((x) => x.classList.remove('on')); b.classList.add('on'); }; lenSeg.appendChild(b); });
-    tools.append(el('span', 'bl-lbl', 'Note length'), lenSeg, button('Clear notes', 'btn ghost sm', () => { ch.notes = []; render(); }));
+    // octave nav — shifts which octaves the grid shows
+    const octSeg = el('span', 'bl-seg');
+    const octDn = button('–', '', () => { st.oct = Math.max(-3, (st.oct || 0) - 1); render(); });
+    const octUp = button('+', '', () => { st.oct = Math.min(4, (st.oct || 0) + 1); render(); });
+    octSeg.append(octDn, octUp);
+    // per-instrument volume
+    const vol = el('input', 'bl-vol'); vol.type = 'range'; vol.min = 0; vol.max = 100; vol.value = Math.round((ch.vol == null ? 0.9 : ch.vol) * 100); vol.style.width = '110px'; vol.title = 'Volume';
+    vol.oninput = () => { ch.vol = vol.value / 100; };
+    vol.onchange = () => { if (S.beat.isPlaying()) S.beat.restart(); };
+    tools.append(el('span', 'bl-lbl', 'Note length'), lenSeg, el('span', 'bl-lbl', 'Octave'), octSeg,
+      el('span', 'bl-lbl', 'Volume'), vol, button('Clear notes', 'btn ghost sm', () => { ch.notes = []; render(); }));
     return tools;
   }
 
   /* ---------- Custom tab: scan Your Sounds + import, then play on the roll ---------- */
   function customTab(ch) {
-    const wrap = el('div');
+    const wrap = el('div', 'bl-page');
     wrap.append(el('p', 'bl-io', 'Pick one of your saved sounds, or import a new one, then play it on the grid.'));
     const bar = el('div'); bar.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px';
     bar.append(button('＋ Import a sound…', 'btn primary', () => importCustom(B().get().channels.find((c) => c.type === 'custom'))));
@@ -236,7 +264,7 @@
     }
     if (ch && ch.assetId) {
       wrap.append(el('p', 'bl-io', 'Playing: ' + ch.name + ' — click/drag the grid to place notes.'));
-      wrap.append(rollTools(ch), pianoRoll(ch, state.roll[ch.id] = state.roll[ch.id] || { len: 2 }));
+      wrap.append(rollTools(ch), pianoRoll(ch, state.roll[ch.id] = state.roll[ch.id] || { len: 2, oct: 0 }));
     } else {
       wrap.append(el('p', 'bl-io', 'Load or import a sound to start playing it.'));
     }
@@ -259,9 +287,10 @@
   function pianoRoll(ch, st) {
     const beat = B().get();
     const total = S.beat.totalSteps(beat);
-    const root = ch.type === 'bass' ? 36 : 60; // 808 low, keys mid
+    const root = (ch.type === 'bass' ? 36 : 60) + (st.oct || 0) * 12; // 808 low, keys mid; octave-shiftable
     const rows = ch.type === 'bass' ? 13 : 25;  // one or two octaves
     const roll = el('div', 'bl-roll');
+    roll.append(ruler(total, 'bl-rpad-k')); // beat numbers line up with the key grid
     const noteAt = (note, step) => (ch.notes || []).find((x) => x.note === note && x.step === step);
     for (let r = rows - 1; r >= 0; r--) {
       const note = root + r;
