@@ -231,7 +231,8 @@
       const base = apiBase();
       if (!buf || !key || !base) { sharedAssets.delete(assetId); return; }
       const meta = S.project.assets[assetId] || {};
-      const wav = S.encodeWav(buf); // 16-bit keeps it within the blob size cap
+      // chunked encode so sharing a big recording never freezes the app (16-bit keeps it within the blob cap)
+      const wav = S.encodeWavChunked ? await S.encodeWavChunked(buf) : S.encodeWav(buf);
       const iv = crypto.getRandomValues(new Uint8Array(12));
       const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, wav);
       const r = await fetch(base + '/blob', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/octet-stream' }, await authHeader()), body: ct });

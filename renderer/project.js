@@ -107,6 +107,16 @@
     return btoa(s);
   };
   S.unb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  // base64, yielding periodically so a large buffer doesn't block the UI (for live collab)
+  S.b64Chunked = async (buf) => {
+    const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+    let s = ''; const SUB = 0x8000;
+    for (let i = 0; i < bytes.length; i += SUB) {
+      s += String.fromCharCode.apply(null, bytes.subarray(i, i + SUB));
+      if (i && (i / SUB) % 64 === 0) await new Promise((r) => setTimeout(r));
+    }
+    return btoa(s);
+  };
 
   /** Plain object for saving: the project plus every used asset as 32-bit float WAV. */
   S.packProject = () => {
@@ -119,6 +129,22 @@
     for (const id of used) {
       const buf = S.buffers.get(id);
       if (buf) assetData[id] = S.b64(S.encodeWav(buf, { float: true }));
+    }
+    const assets = {};
+    for (const id of used) assets[id] = S.project.assets[id];
+    return Object.assign({}, S.project, { assets, assetData });
+  };
+
+  /** Like packProject, but encodes audio without freezing the UI — for live collab's "send". */
+  S.packProjectAsync = async () => {
+    const used = new Set(S.project.tracks.flatMap((t) => t.clips.map((c) => c.asset)));
+    if (S.project.beat && Array.isArray(S.project.beat.channels)) {
+      for (const c of S.project.beat.channels) if (c && c.assetId) used.add(c.assetId);
+    }
+    const assetData = {};
+    for (const id of used) {
+      const buf = S.buffers.get(id);
+      if (buf) assetData[id] = await S.b64Chunked(await S.encodeWavChunked(buf, { float: true }));
     }
     const assets = {};
     for (const id of used) assets[id] = S.project.assets[id];

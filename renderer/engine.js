@@ -833,6 +833,29 @@
     return new Uint8Array(out.buffer);
   };
 
+  // Same bytes as encodeWav, but yields to the event loop every CHUNK frames so a big buffer never
+  // freezes the UI. Used by the live-collab paths (send a session, share audio) where blocking the
+  // main thread for a multi-minute recording would lock the whole app.
+  S.encodeWavChunked = async (buf, { float = false } = {}) => {
+    const nch = buf.numberOfChannels, len = buf.length, bytes = float ? 4 : 2;
+    const out = new DataView(new ArrayBuffer(44 + len * nch * bytes));
+    const w = (o, s) => { for (let i = 0; i < s.length; i++) out.setUint8(o + i, s.charCodeAt(i)); };
+    w(0, 'RIFF'); out.setUint32(4, 36 + len * nch * bytes, true); w(8, 'WAVEfmt '); out.setUint32(16, 16, true);
+    out.setUint16(20, float ? 3 : 1, true); out.setUint16(22, nch, true); out.setUint32(24, buf.sampleRate, true);
+    out.setUint32(28, buf.sampleRate * nch * bytes, true); out.setUint16(32, nch * bytes, true); out.setUint16(34, bytes * 8, true);
+    w(36, 'data'); out.setUint32(40, len * nch * bytes, true);
+    const chans = []; for (let c = 0; c < nch; c++) chans.push(buf.getChannelData(c));
+    let o = 44; const CHUNK = 200000;
+    for (let i = 0; i < len; i++) {
+      for (let c = 0; c < nch; c++) {
+        if (float) { out.setFloat32(o, chans[c][i], true); o += 4; }
+        else { const v = Math.max(-1, Math.min(1, chans[c][i])); out.setInt16(o, v < 0 ? v * 0x8000 : v * 0x7fff, true); o += 2; }
+      }
+      if (i && i % CHUNK === 0) await new Promise((r) => setTimeout(r)); // breathe
+    }
+    return new Uint8Array(out.buffer);
+  };
+
   /** Render the whole session (tracks, effects, master chain) offline. Returns a stereo AudioBuffer. */
   S.renderMix = async (project, { tail = 2.5, sampleRate = 44100 } = {}) => {
     const length = S.projectLength(project);

@@ -239,7 +239,9 @@
         let hosting = false;
         try {
           if (S.native && S.native.syncStates) { try { await S.native.syncStates(); } catch (e) {} }
-          const bytes = new TextEncoder().encode(JSON.stringify(S.packProject()));
+          // packProjectAsync encodes audio without freezing the app (big recordings would lock it)
+          const packed = S.packProjectAsync ? await S.packProjectAsync() : S.packProject();
+          const bytes = new TextEncoder().encode(JSON.stringify(packed));
           if (!bytes.byteLength) throw new Error('Nothing to send yet.');
           if (bytes.byteLength > 25 * 1024 * 1024) throw new Error('This session is too big to send (25 MB max).');
           const r = await S.collab.startHosting();
