@@ -303,14 +303,16 @@
         const d = new Date(msg.at).toDateString();
         if (d !== day) { day = d; m.thread.append(h('div', { class: 'sk-day', text: new Date(msg.at).toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' }) })); }
         if (msg.event) { m.thread.append(h('div', { class: 'sk-day', text: msg.event })); continue; }
-        const mine = msg.from === me;
+        const mine = (msg.mine != null) ? msg.mine : (msg.from === me);
         const p = msg.payload || {};
+        const senderName = mine ? 'You' : (api.nameOf ? api.nameOf(msg.from) : (contact ? displayName(contact) : ''));
+        const who = () => h('div', { class: 'sk-who', text: senderName });
         const time = new Date(msg.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + (mine && msg.seen ? '  · Seen' : '');
         // Live-session invite ( [[live:room:key]] embedded in the text ): show a Join button.
         const liveM = p.text && p.text.match(/\[\[live:([a-z0-9]+)(?::([a-z0-9]+))?\]\]/i);
         if (liveM) {
           const invite = h('div', { class: 'sk-bubble' + (mine ? ' mine' : '') },
-            group && !mine ? h('div', { class: 'sk-who', text: api.nameOf ? api.nameOf(msg.from) : '' }) : null,
+            who(),
             h('div', { style: 'font-weight:700', text: '🎚️ Live session' }),
             mine ? h('div', { class: 'sk-muted', style: 'font-size:11px', text: 'invite sent' })
               : (api.joinLive ? btn('Join', () => api.joinLive(liveM[1], liveM[2] || ''), 'accent sm')
@@ -321,7 +323,7 @@
         }
         const body = p.text || (p.file ? `📎 ${p.file.name}` : '♫ ' + ((p.song || {}).title || 'Shared a song'));
         const bubble = h('div', { class: 'sk-bubble' + (mine ? ' mine' : '') },
-          group && !mine ? h('div', { class: 'sk-who', text: api.nameOf ? api.nameOf(msg.from) : '' }) : null,
+          who(),
           h('div', { text: body }),
           h('div', { class: 'sk-time', text: time }));
         if (p.file && api.openFile) bubble.addEventListener('click', () => api.openFile(st.peer, msg));

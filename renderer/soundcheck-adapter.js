@@ -62,7 +62,10 @@
     // --- normalize a bridge message to the Soundcheck message shape ---
     function mapMsg(m, meId) {
       const payload = m.payload || (m.text != null ? { text: m.text } : m.file ? { file: m.file } : m.song ? { song: m.song } : { text: '' });
-      return { id: m.id, from: m.from, at: m.at, payload: payload, seen: m.seen, event: m.event };
+      // Who sent it: trust the server's own flag if it gives one, otherwise compare ids as strings
+      // (the backend sometimes returns numeric ids, so a strict === against our string id would miss).
+      const mine = (m.mine != null) ? !!m.mine : (m.self != null ? !!m.self : (meId != null && m.from != null && String(m.from) === String(meId)));
+      return { id: m.id, from: m.from, mine: mine, at: m.at, payload: payload, seen: m.seen, event: m.event };
     }
 
     // --- background sync ---
@@ -155,7 +158,7 @@
         active = peer;
         // Optimistic: show the message immediately so it never looks like nothing happened, then
         // confirm with the server and reconcile. If the send fails, remove it and surface why.
-        const temp = { id: 'tmp_' + S.uid(), from: (store.me && store.me.id) || 'me', at: Date.now(), payload: { text }, pending: true };
+        const temp = { id: 'tmp_' + S.uid(), from: (store.me && store.me.id) || 'me', mine: true, at: Date.now(), payload: { text }, pending: true };
         store.pending[peer] = (store.pending[peer] || []).concat(temp);
         fire();
         try {

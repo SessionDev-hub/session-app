@@ -2,6 +2,13 @@
  * "What's new" popup after updating, and the list appears in Settings -> About. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.25.4',
+    date: '2026-11-03',
+    changes: [
+      'Messages now show who sent them, and your messages sit on the right while the other person’s sit on the left — like a normal chat.',
+    ],
+  },
+  {
     version: '0.25.3',
     date: '2026-11-03',
     changes: [
