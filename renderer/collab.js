@@ -39,7 +39,12 @@
     if (!window.Apinator) throw new Error('Live collab isn’t available in this build.');
     const c = cfg();
     if (!c.appKey || !c.authEndpoint) throw new Error('Live collab isn’t configured yet.');
-    const token = S.gate && S.gate.getToken ? await S.gate.getToken() : (S.auth && S.auth.token);
+    // Never let sign-in hang the app: time it out and surface an error instead of freezing.
+    const getTok = S.gate && S.gate.getToken ? S.gate.getToken() : Promise.resolve(S.auth && S.auth.token);
+    const token = await Promise.race([
+      getTok,
+      new Promise((_, rej) => setTimeout(() => rej(new Error('Sign-in timed out — try again.')), 9000)),
+    ]);
     if (!token) throw new Error('Sign in with Discord first.');
     if (client) return client;
     client = new window.Apinator({
@@ -53,11 +58,19 @@
     return client;
   }
 
+  let connectWatchdog = 0;
   function joinChannel(rid) {
     room = rid;
     const name = 'presence-sess-' + rid;
     channel = client.subscribe(name);
+    // Watchdog: if the room never connects (flaky network, auth service cold/unreachable), don't sit
+    // there looking frozen — tell the user and tear down so they can try again.
+    clearTimeout(connectWatchdog);
+    connectWatchdog = setTimeout(() => {
+      if (!connected) { try { S.toast && S.toast('Live session couldn’t connect — check your internet and try again.'); } catch (e) {} teardown(); }
+    }, 15000);
     channel.bind('realtime:subscription_succeeded', () => {
+      clearTimeout(connectWatchdog);
       connected = true; refreshMembers();
       startStateSync();
       // ask the host to sync the newcomer to the current transport + project state
@@ -277,6 +290,7 @@
     joinChannel(rid);
   };
   function teardown() {
+    clearTimeout(connectWatchdog);
     stopStateSync();
     lastSent = '';
     roomKey = null; cryptoKey = null; sharedAssets.clear();

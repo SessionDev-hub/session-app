@@ -30,7 +30,7 @@
     #beatlab .bl-page{flex:1;min-height:0;display:flex;flex-direction:column}
     /* FL-style channel rack — fills the screen */
     #beatlab .bl-rack{flex:1;min-height:0;display:flex;flex-direction:column;background:linear-gradient(180deg,#16181f,#101117);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:12px}
-    #beatlab .bl-rows{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:8px}
+    #beatlab .bl-rows{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;gap:8px}
     #beatlab .bl-row{flex:1 1 0;min-height:44px;max-height:98px;display:flex;align-items:stretch;gap:10px}
     #beatlab .bl-name{width:170px;flex:none;display:flex;flex-direction:column;justify-content:center;gap:8px;font-weight:600;background:linear-gradient(180deg,#2a2d37,#1e212a);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:8px 11px;box-shadow:0 1px 0 rgba(255,255,255,.05) inset,0 2px 5px rgba(0,0,0,.35)}
     #beatlab .bl-nrow{display:flex;align-items:center;gap:7px}
@@ -41,10 +41,10 @@
     #beatlab .bl-solo.on{background:radial-gradient(circle at 50% 38%,#8ff0b0,#36d47a);border-color:transparent;color:#0c2a17;box-shadow:0 0 9px rgba(70,220,130,.75)}
     #beatlab .bl-vol{width:100%;height:4px;-webkit-appearance:none;appearance:none;background:rgba(255,255,255,.16);border-radius:3px;outline:none;cursor:pointer}
     #beatlab .bl-vol::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:#cdd3e6;cursor:pointer}
-    #beatlab .bl-cells{flex:1;display:flex;gap:4px;align-items:stretch}
-    #beatlab .bl-cell{flex:1 1 0;min-width:12px;border-radius:6px;background:linear-gradient(180deg,#191b22,#111218);border:1px solid rgba(255,255,255,.06);box-shadow:0 1px 2px rgba(0,0,0,.5) inset;cursor:pointer;transition:transform .05s}
+    #beatlab .bl-cells{flex:1;min-width:0;display:flex;gap:3px;align-items:stretch}
+    #beatlab .bl-cell{flex:1 1 0;min-width:0;border-radius:6px;background:linear-gradient(180deg,#191b22,#111218);border:1px solid rgba(255,255,255,.06);box-shadow:0 1px 2px rgba(0,0,0,.5) inset;cursor:pointer;transition:transform .05s}
     #beatlab .bl-cell.beat4{background:linear-gradient(180deg,#22252f,#15171e)}
-    #beatlab .bl-cell.grp{margin-left:12px}
+    #beatlab .bl-cell.grp{margin-left:8px}
     #beatlab .bl-cell:active{transform:scale(.96)}
     #beatlab .bl-cell.on{background:linear-gradient(180deg,#ffbe5c,#ff7a1f);border-color:rgba(255,190,110,.6);box-shadow:0 0 11px rgba(255,140,45,.6),0 1px 0 rgba(255,255,255,.4) inset}
     #beatlab .bl-cell.playing{outline:2px solid #fff;outline-offset:-1px}
@@ -52,9 +52,9 @@
     /* beat-number ruler */
     #beatlab .bl-ruler{display:flex;gap:10px;align-items:center;margin:0 0 10px;flex:none}
     #beatlab .bl-rpad{width:170px;flex:none}
-    #beatlab .bl-rnums{flex:1;display:flex;gap:4px}
-    #beatlab .bl-rn{flex:1 1 0;min-width:12px;text-align:center;font-size:10px;color:var(--dim)}
-    #beatlab .bl-rn.grp{margin-left:12px}
+    #beatlab .bl-rnums{flex:1;min-width:0;display:flex;gap:3px}
+    #beatlab .bl-rn{flex:1 1 0;min-width:0;text-align:center;font-size:10px;color:var(--dim);overflow:hidden}
+    #beatlab .bl-rn.grp{margin-left:8px}
     #beatlab .bl-rn.b1{color:var(--text);font-weight:700}
     #beatlab .bl-add{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;flex:none}
     /* piano roll */
@@ -65,10 +65,10 @@
     #beatlab .bl-prow.blk{background:rgba(0,0,0,.22);border-radius:4px}
     #beatlab .bl-key{width:52px;flex:none;font-size:10.5px;color:var(--dim);text-align:right;padding-right:6px}
     #beatlab .bl-key.black{color:#767985}
-    #beatlab .bl-pcells{flex:1;display:flex;gap:4px;align-items:center}
-    #beatlab .bl-pc{flex:1 1 0;min-width:10px;height:19px;border-radius:4px;background:linear-gradient(180deg,#191b22,#111218);border:1px solid rgba(255,255,255,.05);box-shadow:0 1px 2px rgba(0,0,0,.5) inset;cursor:pointer}
+    #beatlab .bl-pcells{flex:1;min-width:0;display:flex;gap:3px;align-items:center}
+    #beatlab .bl-pc{flex:1 1 0;min-width:0;height:19px;border-radius:4px;background:linear-gradient(180deg,#191b22,#111218);border:1px solid rgba(255,255,255,.05);box-shadow:0 1px 2px rgba(0,0,0,.5) inset;cursor:pointer}
     #beatlab .bl-pc.beat4{background:linear-gradient(180deg,#22252f,#15171e)}
-    #beatlab .bl-pc.grp{margin-left:12px}
+    #beatlab .bl-pc.grp{margin-left:8px}
     #beatlab .bl-pc.on{background:linear-gradient(180deg,#9aa6ff,#5c6cff);border-color:transparent;box-shadow:0 0 8px rgba(110,120,255,.6),0 1px 0 rgba(255,255,255,.3) inset}
     #beatlab .bl-pc.playing{outline:2px solid rgba(255,255,255,.75);outline-offset:-1px}
     #beatlab .bl-seg{display:inline-flex;border:1px solid var(--line-hi,rgba(255,255,255,.14));border-radius:8px;overflow:hidden}
@@ -183,8 +183,7 @@
     solo.title = 'Solo';
     nrow.append(dot, nm, mute, solo);
     const vol = el('input', 'bl-vol'); vol.type = 'range'; vol.min = 0; vol.max = 100; vol.value = Math.round((c.vol == null ? 0.9 : c.vol) * 100); vol.title = 'Volume';
-    vol.oninput = () => { c.vol = vol.value / 100; };
-    vol.onchange = () => { if (S.beat.isPlaying()) S.beat.restart(); };
+    vol.oninput = () => S.beat.setChannelVol(c.id, vol.value / 100); // turns the volume live
     name.append(nrow, vol);
     const cells = el('div', 'bl-cells');
     const setCell = (s, on) => { c.cells[s] = on; cells.children[s].classList.toggle('on', on); };
@@ -234,8 +233,7 @@
     octSeg.append(octDn, octUp);
     // per-instrument volume
     const vol = el('input', 'bl-vol'); vol.type = 'range'; vol.min = 0; vol.max = 100; vol.value = Math.round((ch.vol == null ? 0.9 : ch.vol) * 100); vol.style.width = '110px'; vol.title = 'Volume';
-    vol.oninput = () => { ch.vol = vol.value / 100; };
-    vol.onchange = () => { if (S.beat.isPlaying()) S.beat.restart(); };
+    vol.oninput = () => S.beat.setChannelVol(ch.id, vol.value / 100); // turns the volume live
     tools.append(el('span', 'bl-lbl', 'Note length'), lenSeg, el('span', 'bl-lbl', 'Octave'), octSeg,
       el('span', 'bl-lbl', 'Volume'), vol, button('Clear notes', 'btn ghost sm', () => { ch.notes = []; render(); }));
     return tools;

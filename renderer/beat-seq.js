@@ -53,12 +53,14 @@
       if (c.mute) continue;
       if (soloOn && !c.solo) continue;
       const inst = insts[ci], dest = dests[ci];
+      // volume is the per-channel gain node (set in buildBus / turned live by setChannelVol),
+      // so triggers fire at full level and the slider changes loudness instantly.
       if (c.type === 'drum') {
-        for (let s = 0; s < total; s++) if (c.cells[s]) inst.trigger(dest, baseTime + stepTime(b, s, sd), { vel: c.vol });
+        for (let s = 0; s < total; s++) if (c.cells[s]) inst.trigger(dest, baseTime + stepTime(b, s, sd), { vel: 1 });
       } else {
         for (const n of c.notes || []) {
           if (n.step < 0 || n.step >= total) continue;
-          inst.trigger(dest, baseTime + stepTime(b, n.step, sd), { note: n.note, vel: (n.vel == null ? 1 : n.vel) * c.vol, dur: Math.max(1, n.len || 1) * sd });
+          inst.trigger(dest, baseTime + stepTime(b, n.step, sd), { note: n.note, vel: (n.vel == null ? 1 : n.vel), dur: Math.max(1, n.len || 1) * sd });
         }
       }
     }
@@ -74,13 +76,14 @@
     lim.threshold.value = -3; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.002; lim.release.value = 0.1;
     const clip = ctx.createWaveShaper(); clip.curve = SOFTCLIP; // brickwall safety: output stays within ±1
     bus.connect(lim).connect(clip).connect(ctx.destination);
-    const insts = [], dests = [];
+    const insts = [], dests = [], gainById = {};
     for (const c of b.channels) {
-      const g = ctx.createGain(); g.gain.value = 1; g.connect(bus);
+      const g = ctx.createGain(); g.gain.value = (c.vol == null ? 0.9 : c.vol); g.connect(bus);
+      gainById[c.id] = g;
       insts.push(BI().make(ctx, c));
       dests.push(g);
     }
-    return { bus, insts, dests };
+    return { bus, insts, dests, gainById };
   }
 
   /* ---------- live preview (its own transport, loops the pattern) ---------- */
@@ -159,6 +162,13 @@
     return c;
   };
   B.removeChannel = (id) => { const b = B.get(); b.channels = b.channels.filter((c) => c.id !== id); };
+  // set a channel's volume and, if it's playing, turn the live gain node right now (no restart needed)
+  B.setChannelVol = (id, v) => {
+    const b = B.get(); const c = b.channels.find((x) => x.id === id); if (c) c.vol = v;
+    if (live && live.gainById && live.gainById[id] && S.ctx) {
+      try { live.gainById[id].gain.setTargetAtTime(v, S.ctx.currentTime, 0.02); } catch (e) { try { live.gainById[id].gain.value = v; } catch (_) {} }
+    }
+  };
   // wipe every step/note in the pattern (keeps the channels themselves)
   B.clear = () => {
     const b = B.get(); const total = B.totalSteps(b);
