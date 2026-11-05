@@ -7,6 +7,14 @@
  * dropped), and empties PATCH-NOTES-NEXT.txt for the next round. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.25.16',
+    date: '2026-11-05',
+    changes: [
+      '8 new built-in effects on every device, Android included: Bitcrusher, Pitch Shifter (deep voice / chipmunk / harmonies), Formant Filter (talk-box vowels), Vibrato, Bass Enhancer, Tape, Auto-Pan and Phaser.',
+      'Android: fixed effects not showing up at all (the effect list said “No effect matches”) — every built-in effect is back on phones.',
+    ],
+  },
+  {
     version: '0.25.15',
     date: '2026-11-04',
     changes: [

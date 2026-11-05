@@ -1,6 +1,6 @@
 {
   "name": "private-studio",
-  "version": "0.25.15",
+  "version": "0.25.16",
   "description": "Session: record, create and share. A private desktop studio with VST3 support.",
   "author": "Session",
   "main": "main.js",

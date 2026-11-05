@@ -110,7 +110,8 @@
 
   window.studioHost = {
     platform: isNative ? 'android' : 'web',
-    listPlugins: async () => [...(await pluginList).map((f) => '../plugins/' + f), ...Object.keys(readStore()).map((n) => 'user:' + n)],
+    listPlugins: async () => [...(await pluginList).map((f) => '../fx/' + f), // built-ins live in www/fx (see build-www.js)
+      ...Object.keys(readStore()).map((n) => 'user:' + n)],
     readPlugin: async (url) => {
       if (String(url).startsWith('user:')) return readStore()[String(url).slice(5)];
       const r = await fetch(url);

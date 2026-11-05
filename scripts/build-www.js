@@ -6,7 +6,10 @@ const root = path.join(__dirname, '..');
 const www = path.join(root, 'www');
 require('child_process').execSync('node ' + JSON.stringify(path.join(__dirname,'gen-config.js')), { stdio: 'inherit' });
 fs.rmSync(www, { recursive: true, force: true });
-for (const dir of ['renderer', 'plugins', 'assets']) fs.cpSync(path.join(root, dir), path.join(www, dir), { recursive: true });
+for (const dir of ['renderer', 'assets']) fs.cpSync(path.join(root, dir), path.join(www, dir), { recursive: true });
+// Built-in effects go to www/fx, NOT www/plugins: Capacitor's sync deletes any "plugins" folder in
+// the app's web files (that name is reserved for Cordova plugins), which left Android with no effects.
+fs.cpSync(path.join(root, 'plugins'), path.join(www, 'fx'), { recursive: true });
 const plugins = fs.readdirSync(path.join(root, 'plugins')).filter((f) => /\.(m|c)?js$/.test(f));
 fs.writeFileSync(path.join(www, 'renderer', 'plugin-list.json'), JSON.stringify(plugins));
 fs.writeFileSync(
