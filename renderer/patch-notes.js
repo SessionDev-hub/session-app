@@ -7,6 +7,15 @@
  * dropped), and empties PATCH-NOTES-NEXT.txt for the next round. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.25.17',
+    date: '2026-11-05',
+    changes: [
+      'Vocal Vibe now builds a different chain for every artist — 120+ big artists have their own hand-tuned vocal signature (Drake: dark and close; SZA: airy and stacked; Travis: drenched in reverb…), and every other artist gets their own take on their style instead of the same preset.',
+      'Fixed typing in Vocal Vibe on phones — the keyboard’s Go/Enter key now builds the chain.',
+      'Fixed naming a save: pressing Enter in the name box used to cancel the save. Saving in the app now always lets you name (or rename) the song, and on Android “Save to a file” asks for a name too.',
+    ],
+  },
+  {
     version: '0.25.16',
     date: '2026-11-05',
     changes: [

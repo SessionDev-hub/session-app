@@ -154,7 +154,7 @@
     if (cached !== undefined) return cached;
     let out = null;
     try {
-      const r = await withTimeout(fetch('https://musicbrainz.org/ws/2/artist?fmt=json&limit=3&query=' + encodeURIComponent('artist:"' + key + '"')), 6000);
+      const r = await withTimeout(fetch('https://musicbrainz.org/ws/2/artist?fmt=json&limit=3&query=' + encodeURIComponent('artist:"' + key + '"')), 4500);
       const j = await r.json();
       const a = (j.artists || []).find((x) => (x.score || 0) >= 85);
       if (a) {
@@ -165,7 +165,7 @@
     } catch (e) {}
     if (!out) {
       try {
-        const r = await withTimeout(fetch('https://itunes.apple.com/search?entity=musicArtist&limit=3&term=' + encodeURIComponent(key)), 6000);
+        const r = await withTimeout(fetch('https://itunes.apple.com/search?entity=musicArtist&limit=3&term=' + encodeURIComponent(key)), 4500);
         const j = await r.json();
         const a = (j.results || []).find((x) => x.artistName && x.artistName.toLowerCase().replace(/[^a-z0-9]/g, '') === key.replace(/[^a-z0-9]/g, '')) || (j.results || [])[0];
         if (a && a.primaryGenreName) { const style = V.styleFromTags([a.primaryGenreName]); if (style) out = { name: a.artistName, style, via: a.primaryGenreName }; }
@@ -181,6 +181,51 @@
     const c = JSON.parse(JSON.stringify(r));
     Object.assign(o, c, { eq: Object.assign(o.eq, c.eq || {}), delay: Object.assign(o.delay, c.delay || {}), reverb: Object.assign(o.reverb, c.reverb || {}) });
     return o;
+  };
+
+  /* ---------- per-artist signature ---------- */
+  const hash = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+  /** Make the chain this artist's own: a hand-tuned signature if we have one, otherwise a stable
+   *  variation of their style made from their name (same artist → same chain, different artists differ). */
+  V.personalize = (r, name) => {
+    const key = String(name || '').toLowerCase().trim();
+    const sig = S.vibeSignatures && S.vibeSignatures.get(key);
+    if (sig) {
+      r.tune = sig.tune ? T(sig.tune[0], sig.tune[1]) : null;
+      r.reverb = { amt: sig.rv[0], type: sig.rv[1] };
+      r.delay = { amt: sig.dl[0], sync: sig.dl[1] };
+      r.eq = Object.assign({}, r.eq, sig.eq);
+      r.comp = sig.comp; r.chorus = sig.chorus; r.sat = sig.sat; r.dirty = !!sig.dirty;
+      return sig.note;
+    }
+    let h = hash(key);
+    const pick = (n) => { const v = h % n; h = Math.floor(h / n) ^ hash(key + n); return v; };
+    const words = [];
+    const dRev = [-1, 0, 1][pick(3)];
+    if (dRev && r.reverb) { r.reverb.amt = clamp(r.reverb.amt + dRev, 0, 4); words.push(dRev > 0 ? 'wetter' : 'drier'); }
+    if (pick(3) === 0 && r.reverb) r.reverb.type = r.reverb.type === 'hall' ? 'plate' : r.reverb.type === 'plate' ? 'hall' : 'plate';
+    if (r.delay) {
+      const syncs = ['1/8', '1/8 dotted', '1/4', '1/4 dotted', '1/16', 'slap'];
+      if (pick(2) === 0) r.delay.sync = syncs[pick(syncs.length)];
+      const dDel = [-1, 0, 0, 1][pick(4)];
+      if (dDel) { r.delay.amt = clamp(r.delay.amt + dDel, 0, 3); words.push(dDel > 0 ? 'more echo' : 'less echo'); }
+    }
+    if (r.tune) {
+      const dT = [-4, 0, 4, 8, 15][pick(5)];
+      r.tune = T(clamp(r.tune.retune + dT, 0, 120), r.tune.strength);
+      if (dT >= 8) words.push('softer tune'); else if (dT < 0) words.push('harder tune');
+    }
+    const dAir = [-1, 0, 1, 2][pick(4)];
+    r.eq.air = clamp((r.eq.air || 0) + dAir, -3, 6);
+    if (dAir >= 2) words.push('airier'); else if (dAir < 0) words.push('darker');
+    const dPres = [-1, 0, 1][pick(3)];
+    r.eq.presence = clamp((r.eq.presence || 0) + dPres, -2, 5);
+    if (dPres > 0) words.push('more upfront');
+    if (pick(3) === 0) { r.eq.low = clamp((r.eq.low || 0) + 1, 0, 4); words.push('warmer'); }
+    const dCh = [-1, 0, 0, 1][pick(4)];
+    if (dCh) { r.chorus = clamp((r.chorus || 0) + dCh, 0, 3); if (dCh > 0) words.push('wider'); }
+    if (pick(4) === 0) { r.sat = clamp((r.sat || 0) + 1, 0, 3); words.push('grittier'); }
+    return words.length ? words.slice(0, 3).join(', ') + ' than the usual ' + (STYLE_BY_ID.get(r.style) || { label: 'style' }).label.toLowerCase() + ' sound' : '';
   };
 
   /* ---------- understanding the text ---------- */
@@ -224,7 +269,15 @@
     else if (opts.looked) { style = STYLE_BY_ID.get(opts.looked.style); styleNote = opts.looked.name + '-style vocal (' + style.label.toLowerCase() + (opts.looked.via ? ', from ' + opts.looked.via : '') + ')'; }
     else { style = STYLES.find((x) => has(t, x.words)) || null; if (style) styleNote = style.label + ' style'; }
     let r;
-    if (style) { r = fromStyle(style.r); r.style = style.id; said.push(styleNote); }
+    if (style) {
+      r = fromStyle(style.r); r.style = style.id;
+      const who = artist ? artist.name : opts.looked ? opts.looked.name : null;
+      if (who) {
+        const sigNote = V.personalize(r, who);
+        r.artist = who;
+        said.push(titleCase(String(who).toLowerCase()) + '-style vocal' + (sigNote ? ' — ' + sigNote : ' (' + style.label.toLowerCase() + ')'));
+      } else said.push(styleNote);
+    }
     else if (opts.unknown) { r = fromStyle(BASE); r.style = 'base'; said.push(opts.offline ? 'Offline, so I couldn’t look up “' + opts.unknown + '” — built a clean vocal (add a genre like trap or R&B)' : 'Couldn’t find “' + opts.unknown + '” — built a clean vocal (add a genre like trap, R&B or drill)'); }
     else if (prev && !restart) r = fromStyle(prev);
     else { r = fromStyle(BASE); r.style = 'base'; }
@@ -340,7 +393,9 @@
       S.refresh.structure();
       return { said: res.said, chain: [] };
     }
-    const chain = V.build(res.recipe).filter((f) => S.plugins.get(f.pluginId));
+    const built = V.build(res.recipe);
+    const chain = built.filter((f) => S.plugins.get(f.pluginId));
+    if (built.length && !chain.length) return { error: 'Session’s effects didn’t load on this device, so Vocal Vibe has nothing to build with. Update to the latest version.' };
     track.fx = chain.map((f) => ({ id: S.uid(), pluginId: f.pluginId, params: Object.assign(S.defaultParams(S.plugins.get(f.pluginId)), f.params), bypass: false }));
     track.vibe = { recipe: res.recipe, last: String(text).slice(0, 200) };
     S.refresh.structure();
@@ -377,7 +432,7 @@
     dlg.innerHTML = `
       <div class="vibe-head"><div class="vibe-logo">✦</div><div><h3>Vocal Vibe</h3><div class="vibe-sub">Say what you want — it builds the whole vocal chain for you.</div></div><button class="btn ghost sm vibe-x" title="Close">✕</button></div>
       <label class="vibe-lbl">Track <select class="sel vibe-track"></select></label>
-      <div class="vibe-box"><textarea class="txt vibe-in" rows="2" placeholder="Name any artist or vibe — e.g. sound like Travis, hard tune in F minor, a bit wetter"></textarea><button class="btn primary vibe-go">Build</button></div>
+      <div class="vibe-box"><textarea class="txt vibe-in" rows="2" enterkeyhint="go" autocomplete="off" autocapitalize="off" placeholder="Name any artist or vibe — e.g. sound like Travis, hard tune in F minor, a bit wetter"></textarea><button class="btn primary vibe-go">Build</button></div>
       <div class="vibe-chips vibe-ex"></div>
       <div class="vibe-out" hidden><div class="vibe-said"></div><ol class="vibe-chain"></ol>
         <div class="vibe-follow-lbl">Tweak it:</div><div class="vibe-chips vibe-fu"></div>
@@ -411,7 +466,13 @@
       if (text == null) input.select();
     };
     $('.vibe-go').onclick = () => run();
-    input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); run(); } });
+    input.addEventListener('keydown', (e) => {
+      e.stopPropagation(); // typing must never trigger app shortcuts (space = play, etc.)
+      if ((e.key === 'Enter' || e.keyCode === 13) && !e.shiftKey) { e.preventDefault(); run(); }
+    });
+    // phone keyboards often don't send a real Enter key — they just insert a new line. Treat that as "Build".
+    input.addEventListener('input', () => { if (/\n/.test(input.value)) { input.value = input.value.replace(/\n+/g, ' ').trim(); run(); } });
+    dlg.addEventListener('keydown', (e) => e.stopPropagation());
     $('.vibe-undo').onclick = () => { if (S.history.canUndo()) { S.history.undo(); $('.vibe-said').textContent = 'Undone — the track’s previous effects are back.'; $('.vibe-chain').innerHTML = ''; } };
     $('.vibe-x').onclick = () => dlg.close();
     dlg.addEventListener('close', () => dlg.remove());

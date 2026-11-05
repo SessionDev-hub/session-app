@@ -266,6 +266,13 @@
   const safeName = () => (S.project.name || 'session').replace(/[^\w\- ]+/g, '_');
 
   async function save() {
+    // On Android / the web there's no system "Save as" box, so ask for the name here first
+    const plat = (window.studioHost && window.studioHost.platform) || '';
+    if (plat === 'android' || plat === 'web') {
+      const typed = await S.askText('Name this session', { value: S.project.name || 'Untitled Session', placeholder: 'Song name' });
+      if (typed == null) return;
+      if (typed.trim()) { S.project.name = typed.trim(); $('proj-name').value = S.project.name; }
+    }
     try {
       await S.native.syncStates();
       const text = JSON.stringify(S.packProject());

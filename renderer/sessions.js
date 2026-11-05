@@ -99,13 +99,14 @@
   M.saveCurrent = async (asNew) => {
     let name = S.project.name || 'Untitled Session';
     let id = asNew ? null : M.currentId;
-    if (!id) {
-      const typed = await S.askText('Name this session', { value: name });
-      if (!typed) return;
-      name = typed;
-      id = S.uid();
-      S.project.name = name;
-    }
+    // always let people name (or rename) what they're saving — prefilled, so Enter keeps the name
+    const typed = await S.askText(id ? 'Save session as' : 'Name this session', { value: name, placeholder: 'Song name' });
+    if (typed == null) return;
+    name = typed.trim() || name;
+    if (!id) id = S.uid();
+    S.project.name = name;
+    const pn = document.getElementById('proj-name');
+    if (pn) pn.value = name;
     try {
       if (S.native && S.native.syncStates) await S.native.syncStates();
       S.toast('Saving “' + (S.project.name || name) + '”…');

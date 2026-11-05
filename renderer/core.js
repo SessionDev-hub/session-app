@@ -210,22 +210,36 @@
     new Promise((resolve) => {
       const dlg = document.createElement('dialog');
       dlg.className = 'modal';
+      // Cancel is type="button": pressing Enter used to "click" the first button (Cancel) and throw
+      // away what you typed — that's why naming a save sometimes didn't stick.
       dlg.innerHTML = `<form method="dialog"><h3></h3><input class="txt" ${
         password ? 'type="password"' : 'type="text"'
-      } /><div class="row"><button value="cancel" class="btn">Cancel</button><button value="ok" class="btn primary">OK</button></div></form>`;
+      } autocomplete="off" enterkeyhint="done" /><div class="row"><button type="button" class="btn ask-cancel">Cancel</button><button type="submit" value="ok" class="btn primary">OK</button></div></form>`;
       dlg.querySelector('h3').textContent = title;
       const input = dlg.querySelector('input');
       input.placeholder = placeholder;
       input.value = value;
-      dlg.addEventListener('close', () => {
-        const ok = dlg.returnValue === 'ok';
+      let done = false;
+      const finish = (ok) => {
+        if (done) return;
+        done = true;
         const v = input.value;
+        try { dlg.close(); } catch (e) {}
         dlg.remove();
         resolve(ok ? v : null);
+      };
+      dlg.querySelector('.ask-cancel').onclick = () => finish(false);
+      dlg.querySelector('form').addEventListener('submit', (e) => { e.preventDefault(); finish(true); });
+      input.addEventListener('keydown', (e) => {
+        e.stopPropagation(); // never let typing reach the app's shortcuts
+        if (e.key === 'Enter' || e.keyCode === 13) { e.preventDefault(); finish(true); }
       });
+      dlg.addEventListener('cancel', (e) => { e.preventDefault(); finish(false); }); // Escape / Android back
+      dlg.addEventListener('close', () => finish(dlg.returnValue === 'ok'));
       document.body.appendChild(dlg);
       dlg.showModal();
       input.focus();
+      try { input.select(); } catch (e) {}
     });
 
   Studio.toast = (msg) => {
