@@ -6,7 +6,9 @@
   // (channels that are digital silence are ignored so a single live input keeps its full level).
   const RECORDER_WORKLET = `
     class RecProcessor extends AudioWorkletProcessor {
+      constructor() { super(); this.dead = false; this.port.onmessage = (e) => { if (e.data && e.data.__psKill) this.dead = true; }; }
       process(inputs) {
+        if (this.dead) return false; // the take is finished: stop for good instead of running forever
         const inp = inputs[0];
         let out;
         if (inp && inp.length && inp[0] && inp[0].length) {
@@ -262,8 +264,12 @@
       if (rec) return rec.inst;
       if (!def || this.broken.get(fx.id) === def) return null;
       let inst = null;
+      const made = (S.__awCollect = []); // every worklet node this effect builds, so we can stop them all later
       try {
-        inst = wrapInstance(this.ctx, def.create(this.ctx));
+        let raw;
+        try { raw = def.create(this.ctx); } finally { S.__awCollect = null; }
+        inst = wrapInstance(this.ctx, raw);
+        inst.workletNodes = made;
         const merged = S.defaultParams(def, fx.params);
         for (const k of Object.keys(merged)) {
           try {
@@ -273,7 +279,9 @@
           }
         }
       } catch (e) {
+        S.__awCollect = null;
         if (inst) inst.destroy();
+        for (const n of made) S.killWorkletNode(n);
         this.broken.set(fx.id, def);
         console.warn('[plugin failed to start]', def.id, e);
         S.toast('Plugin "' + def.name + '" failed and was skipped: ' + ((e && e.message) || e));
@@ -289,6 +297,8 @@
       try {
         rec.inst.destroy();
       } catch (e) {}
+      // stop the plugin's audio-thread processors too (otherwise they keep running after removal)
+      for (const n of rec.inst.workletNodes || []) S.killWorkletNode(n);
       this.fx.delete(id);
     }
 
@@ -650,6 +660,9 @@
         this.mic.input.disconnect(r.node);
       } catch (e) {}
       r.node.port.onmessage = null;
+      // stop the capture processor for good — before, every finished take kept running and messaging
+      // the app ~375 times a second forever, so after a few takes recording lagged and then broke
+      try { r.node.port.postMessage({ __psKill: 1 }); } catch (e) {}
       r.node.disconnect();
       r.silent.disconnect();
       this.stop();
@@ -742,6 +755,7 @@
         this.mic.input.disconnect(node);
       } catch (e) {}
       node.port.onmessage = null;
+      try { node.port.postMessage({ __psKill: 1 }); } catch (e) {}
       node.disconnect();
       silent.disconnect();
 

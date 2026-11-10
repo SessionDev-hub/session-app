@@ -407,8 +407,9 @@ app.whenReady().then(() => {
   // Allow audio capture AND choosing the audio output device (speaker-selection, which
   // AudioContext.setSinkId needs to switch to headphones/another output). Deny everything else.
   const audioOnly = (details) => !details || !details.mediaTypes || details.mediaTypes.every((t) => t === 'audio');
+  // 'midi' (no sysex) lets Beat Lab play notes from a plugged-in MIDI keyboard
   const allowed = (permission, details) =>
-    (permission === 'media' && audioOnly(details)) || permission === 'speaker-selection';
+    (permission === 'media' && audioOnly(details)) || permission === 'speaker-selection' || (permission === 'midi' && !(details && details.sysex));
   session.defaultSession.setPermissionRequestHandler((_wc, permission, cb, details) => {
     // On macOS, mic capture also needs the OS-level TCC grant. Trigger/await the system
     // prompt the first time so the page's getUserMedia actually gets audio (otherwise the
@@ -419,7 +420,7 @@ app.whenReady().then(() => {
     }
     cb(allowed(permission, details));
   });
-  session.defaultSession.setPermissionCheckHandler((_wc, permission) => permission === 'media' || permission === 'speaker-selection');
+  session.defaultSession.setPermissionCheckHandler((_wc, permission) => permission === 'media' || permission === 'speaker-selection' || permission === 'midi');
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

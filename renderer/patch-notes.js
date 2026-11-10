@@ -7,6 +7,23 @@
  * dropped), and empties PATCH-NOTES-NEXT.txt for the next round. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.25.18',
+    date: '2026-11-10',
+    changes: [
+      'Fixed recording breaking after a while (no waveform in the red box, stopping put nothing down, crackly sound): every finished take and every removed effect kept running in the background forever. They now shut off properly, so you can record take after take with effect chains on.',
+      'Auto-Tune uses less than half the CPU (smoother recording with it on several tracks), holds notes through breaths and consonants instead of warbling, and can no longer glitch out the whole mix.',
+      'New: export as FLAC (lossless, 16-bit or 24-bit) from the Export menu.',
+      'New: pick your accent colour (10 presets or any custom colour) and switch between Glass and Flat looks in Settings → Appearance.',
+      'New: set your recording delay yourself — type it in or pick your setup (interface, USB mic, laptop, Bluetooth) in Settings → Audio. Measure with mic now plays 10 clicks and tells you how solid the result is.',
+      'Beat Lab overhaul: patterns (make as many as you want, up to 16 bars each) and a Song tab to arrange them into a full beat — “Add to track” drops the whole song on your timeline.',
+      'Beat Lab: 56 brand-new sounds made from scratch (free to use, no samples) — 10 kicks, 7 snares, 6 claps, 10 hi-hats/open hats, 10 percussion, toms, rims, cymbals and FX — plus 9 one-tap kits (Trap, Rage, Drill, Plugg, Boom Bap, Lo-Fi, Afrobeats, House, Hard Hitter). Click a channel name to swap its sound.',
+      'Beat Lab: way better 808s — 7 types (Clean, Hard, Drill Slide, Long, Short, Growl, Sub) with Distortion, Length, Slide, Punch and Tone. Overlap two 808 notes and it slides into the next one, like FL.',
+      'Beat Lab: 12 instruments for melodies (Piano, E-Piano, Bells, Pluck, Pad, Rage Lead, Organ, Flute, Brass, Synth Bass, Choir, Guitar), note lengths up to a full bar, and a bigger piano roll.',
+      'Beat Lab: velocity per step (Velocity button or right-click a pad), pan per channel, tune any channel, and long patterns scroll instead of squashing.',
+      'Beat Lab: play notes from your computer keyboard (FL layout Z–M / Q–U, or one row A–K; [ and ] change octave) or a plugged-in MIDI keyboard — hit Rec and they land on the grid in time. Space plays/stops.',
+    ],
+  },
+  {
     version: '0.25.17',
     date: '2026-11-05',
     changes: [

@@ -40,6 +40,9 @@
         this.WIN = 1024;
         this.HOP = 256;
         this.det = new Float32Array(this.WIN);
+        this.dec = new Float32Array(this.WIN >> 1); // detector input at half rate (pitch range is far below 12 kHz)
+        this.holdN = 0;                // samples we keep the last correction through an unvoiced gap
+        this.lastRatio = 1;
         this.dpos = 0;                 // how many samples since last detection
         this.dfill = 0;                // samples written into det so far
         this.f0 = 0;                   // last detected pitch (Hz)
@@ -52,7 +55,12 @@
         this.yin = new Float32Array(this.tauMax + 2);
       }
       detect() {
-        const x = this.det, N = this.WIN, tauMax = Math.min(this.tauMax, (N >> 1) - 1), tauMin = this.tauMin, d = this.yin;
+        // half-rate copy (pair average = gentle low-pass): the pitch search costs ~4x less CPU,
+        // which is what made recording with Auto-Tune on several tracks lag and glitch
+        const src = this.det, x = this.dec, N = this.WIN >> 1;
+        for (let i = 0; i < N; i++) x[i] = 0.5 * (src[2 * i] + src[2 * i + 1]);
+        const tauMax = Math.min(this.tauMax >> 1, (N >> 1) - 1), tauMin = this.tauMin >> 1, d = this.yin;
+        const prevF0 = this.f0;
         // RMS gate: skip near-silence / breaths
         let rms = 0;
         for (let i = 0; i < N; i++) rms += x[i] * x[i];
@@ -77,8 +85,16 @@
         // parabolic interpolation around the dip
         const a = d[tau - 1] || d[tau], b = d[tau], c = d[tau + 1] || d[tau];
         const denom = a + c - 2 * b;
-        const shift = denom !== 0 ? 0.5 * (a - c) / denom : 0;
-        this.f0 = this.sr / (tau + shift);
+        let shift = denom !== 0 ? 0.5 * (a - c) / denom : 0;
+        if (!(shift > -1 && shift < 1)) shift = 0; // never let interpolation run away (NaN/Infinity guard)
+        let f = (this.sr / 2) / (tau + shift);
+        // octave guard: a sudden jump of ~an octave from the last pitch is almost always a detection slip
+        if (prevF0 > 0) {
+          const r = f / prevF0;
+          if (r > 1.88 && r < 2.12) f *= 0.5;
+          else if (r > 0.47 && r < 0.53) f *= 2;
+        }
+        this.f0 = isFinite(f) && f > 40 && f < 2000 ? f : 0;
       }
       snap(keyIdx, scaleIdx) {
         const f0 = this.f0;
@@ -133,10 +149,16 @@
             this.detect();
             const ratio = this.snap(keyIdx, scaleIdx);
             // apply strength in the cents domain, so 50% = halfway corrected
-            this.pTarget = this.f0 ? Math.pow(ratio, strength) : 1;
+            if (this.f0) { this.pTarget = Math.pow(ratio, strength); this.lastRatio = this.pTarget; this.holdN = Math.round(sr * 0.08); }
+            // short unvoiced gaps (consonants, breaths) keep the current correction instead of snapping
+            // back to "no shift" and then re-correcting — that back-and-forth is the warble at word edges
+            else if (this.holdN > 0) { this.holdN -= this.HOP; this.pTarget = this.lastRatio; }
+            else this.pTarget = 1;
+            if (!isFinite(this.pTarget)) this.pTarget = 1;
           }
           // glide the ratio toward the target (retune speed)
           this.p = aRe * this.p + (1 - aRe) * this.pTarget;
+          if (!(this.p > 0.25 && this.p < 4)) this.p = 1; // self-heal: a bad value can never stick
           // advance the grain phase; delay drifts at (1 - p) and wraps over one grain
           this.delay = this.delay + (1 - this.p);
           this.delay = ((this.delay % G) + G) % G;

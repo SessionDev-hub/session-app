@@ -220,6 +220,7 @@
     }
 
     function paneAppearance() {
+      if (S.theme && S.theme.controls) { const th = document.createElement('div'); th.className = 'set-pane'; S.theme.controls(th); body.appendChild(th); }
       const box = document.createElement('div');
       box.className = 'set-pane';
       const h = document.createElement('div');
@@ -371,6 +372,8 @@
         '<p class="hint" id="set-autolat-hint"></p>' +
         '<div class="param"><label>Measured delay</label><span id="set-lat-read" class="val"></span><span></span></div>' +
         '<div class="param"><label>&nbsp;</label><button class="btn" id="set-cal">Measure with mic</button><button class="btn" id="set-cal-auto" style="margin-left:8px">Estimate (no mic)</button><span class="hint">On headphones, use Estimate — the mic can’t hear the clicks.</span></div>' +
+        '<div class="param"><label>Set delay yourself</label><select class="sel" id="set-lat-pick" style="max-width:220px"><option value="">Pick your setup…</option><option value="8">Audio interface, low buffer (~8 ms)</option><option value="15">Audio interface (~15 ms)</option><option value="25">USB mic (~25 ms)</option><option value="40">Laptop / built-in (~40 ms)</option><option value="60">Phone wired headphones (~60 ms)</option><option value="200">Bluetooth headphones (~200 ms)</option></select><input type="number" id="set-lat-ms" class="txt num" min="0" max="500" step="1" placeholder="ms" style="width:80px;margin-left:8px"><button class="btn" id="set-lat-apply" style="margin-left:8px">Set</button></div>' +
+        '<p class="hint">Know your delay? Type it (or pick your setup) and press Set. Measure with mic plays 10 clicks and tells you how solid the result is.</p>' +
         '<div class="param"><label>Recording offset (ms)</label><input type="number" id="set-nudge" class="txt num" step="5"><span class="hint">Added on top of the delay above, and remembered. On an audio interface, set this once so takes land on the beat: if takes sound early use a negative number, if late use positive. (You can also nudge a selected take with [ and ] — hold Shift for 1 s, Alt for 50 ms.)</span></div>';
       body.appendChild(box);
       const al = box.querySelector('#set-autolat'), alHint = box.querySelector('#set-autolat-hint');
@@ -390,6 +393,15 @@
       box.querySelector('#set-cal-auto').onclick = () => {
         if (S.useAutoLatency) S.useAutoLatency();
         setTimeout(refresh, 100);
+      };
+      const pick = box.querySelector('#set-lat-pick'), msIn = box.querySelector('#set-lat-ms');
+      if (S.latencyInfo) msIn.value = S.latencyInfo().ms;
+      pick.onchange = () => { if (pick.value) msIn.value = pick.value; };
+      box.querySelector('#set-lat-apply').onclick = () => {
+        const v = parseFloat(msIn.value);
+        if (!(v >= 0 && v <= 500)) return S.toast('Type a delay between 0 and 500 ms.');
+        if (S.setManualLatency) S.setManualLatency(v);
+        setTimeout(refresh, 50);
       };
       const nudge = box.querySelector('#set-nudge');
       const lat = document.getElementById('lat');

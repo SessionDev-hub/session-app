@@ -374,6 +374,11 @@
         S.toast('Encoding MP3…');
         bytes = S.encodeMp3(buf, { bitrate });
         ext = 'mp3';
+      } else if (format === 'flac') {
+        S.toast('Encoding FLAC…');
+        await new Promise((r) => setTimeout(r, 30)); // let the toast paint before the encode runs
+        bytes = S.encodeFlac(buf, { bits: bitrate === 24 ? 24 : 16 });
+        ext = 'flac';
       } else {
         bytes = S.encodeWav(buf);
         ext = 'wav';
@@ -384,16 +389,18 @@
         defaultName: safeName() + '.' + ext,
         filters: [{ name: ext.toUpperCase() + ' audio', extensions: [ext] }],
       });
-      if (path) S.toast('Exported ' + ext.toUpperCase() + (format === 'mp3' ? ' (' + bitrate + ' kbps)' : ''));
+      if (path) S.toast('Exported ' + ext.toUpperCase() + (format === 'mp3' ? ' (' + bitrate + ' kbps)' : format === 'flac' ? ' (' + (bitrate === 24 ? 24 : 16) + '-bit)' : ''));
     } catch (e) {
       S.toast('Export failed: ' + e.message);
     }
   }
 
-  /** Little menu off the Export button: pick WAV or an MP3 quality. */
+  /** Little menu off the Export button: pick WAV, FLAC or an MP3 quality. */
   function exportMenu(x, y) {
     S.clips.menu(x, y, [
       { label: 'WAV — lossless', hint: 'best quality', action: () => exportSong('wav') },
+      { label: 'FLAC — lossless, 16-bit', hint: 'about half the size of WAV', action: () => exportSong('flac', 16) },
+      { label: 'FLAC — lossless, 24-bit', hint: 'studio master', action: () => exportSong('flac', 24) },
       { sep: true },
       { label: 'MP3 — 320 kbps', hint: 'highest MP3', action: () => exportSong('mp3', 320) },
       { label: 'MP3 — 256 kbps', hint: 'great', action: () => exportSong('mp3', 256) },
@@ -530,6 +537,15 @@
     if (!quiet) S.toast('Using automatic latency estimate: ' + Math.round(clamped * 1000) + ' ms');
   }
   S.useAutoLatency = useAutoLatency;
+  /** Type or pick the recording delay yourself (Settings → Audio). Saved for this mic like a measured value. */
+  S.setManualLatency = (ms) => {
+    const sec = Math.max(0, Math.min(0.5, (+ms || 0) / 1000));
+    S.engine.calibrated = sec;
+    saveCal(sec, 'manual');
+    updateLatencyReadout();
+    S.toast('Recording delay set to ' + Math.round(sec * 1000) + ' ms.');
+  };
+  S.latencyInfo = () => { const s = readStore(calKey()); return { ms: Math.round((S.engine.calibrated != null ? S.engine.calibrated : S.engine.latencySeconds()) * 1000), how: (s && s.how) || (S.engine.calibrated != null ? 'measured' : 'estimate') }; };
 
   async function runCalibration() {
     if (S.engine.isRecording) return S.toast('Stop recording first');
@@ -539,9 +555,10 @@
     S.toast('Measuring… you will hear a few clicks');
     try {
       if (S.engine.playing) S.stopTransport();
-      const r = await S.engine.calibrateLatency();
+      const r = await S.engine.calibrateLatency({ n: 10, gap: 0.5 });
       saveCal(r.seconds, 'measured');
-      S.toast('Latency measured: ' + Math.round(r.seconds * 1000) + ' ms');
+      const shaky = r.spreadMs > 12;
+      S.toast('Latency measured: ' + Math.round(r.seconds * 1000) + ' ms (' + r.hits + ' of 10 clicks heard' + (shaky ? ', results varied by ' + r.spreadMs + ' ms — try again in a quieter room or turn the volume up' : ', solid result') + ').');
     } catch (e) {
       S.toast(e.message);
       // Mic couldn't hear the clicks (headphones / quiet mic) — fall back to the automatic

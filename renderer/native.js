@@ -423,7 +423,7 @@
         eng.analyser.disconnect(cap);
       } catch (e) {}
       cap.port.onmessage = null;
-      cap.disconnect();
+      S.killWorkletNode(cap);
       sink.disconnect();
     }
     const skip = Math.round(lat * sr);

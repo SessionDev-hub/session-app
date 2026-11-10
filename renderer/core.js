@@ -96,9 +96,31 @@
    * Studio.prepareContext(ctx) loads them into a context before any plugin instance is created.
    */
   Studio.worklets = new Map();
+  // Every worklet gets a tiny wrapper so its processor can be switched OFF when its effect is removed.
+  // Without this a removed effect's processor keeps running on the audio thread forever (Chrome keeps a
+  // worklet alive while process() returns true), so every chain rebuild left more of them behind.
+  const KILL_SHIM = `const registerProcessor = (name, Cls) => globalThis.registerProcessor(name, class extends Cls {
+    constructor(o) { super(o); this.__psDead = false; this.port.addEventListener('message', (e) => { if (e.data && e.data.__psKill) this.__psDead = true; }); this.port.start(); }
+    process(i, o, p) { return this.__psDead ? false : super.process(i, o, p); }
+  });\n`;
   Studio.registerWorklet = (name, source) => {
-    if (typeof name === 'string' && typeof source === 'string') Studio.worklets.set(name, source);
+    if (typeof name === 'string' && typeof source === 'string') Studio.worklets.set(name, KILL_SHIM + source);
   };
+  /** Stop a worklet node for good: tell its processor to finish, then unplug it. */
+  Studio.killWorkletNode = (node) => {
+    try { node.port.postMessage({ __psKill: 1 }); } catch (e) {}
+    try { node.disconnect(); } catch (e) {}
+  };
+  // Note every AudioWorkletNode a plugin builds while Studio.__awCollect is set, so the engine can stop
+  // all of them (including ones hidden inside the plugin) when that effect is removed.
+  if (typeof window !== 'undefined' && window.AudioWorkletNode && !window.AudioWorkletNode.__psWrapped) {
+    const Native = window.AudioWorkletNode;
+    const Wrapped = class AudioWorkletNode extends Native {
+      constructor(ctx, name, opts) { super(ctx, name, opts); if (Studio.__awCollect) Studio.__awCollect.push(this); }
+    };
+    Wrapped.__psWrapped = true;
+    window.AudioWorkletNode = Wrapped;
+  }
   const prepared = new WeakMap();
   Studio.prepareContext = async (ctx) => {
     if (!ctx || !ctx.audioWorklet) return;
