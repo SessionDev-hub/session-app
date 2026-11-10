@@ -1,0 +1,26 @@
+app = "session-collab-auth"
+primary_region = "iad"
+
+[build]
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[http_service.checks]]
+  interval = "30s"
+  timeout = "5s"
+  method = "GET"
+  path = "/"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
+
+# persistent storage for the beat store (create once: fly volumes create session_data --size 3 --region iad)
+[mounts]
+  source = "session_data"
+  destination = "/data"

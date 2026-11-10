@@ -7,6 +7,13 @@
  * dropped), and empties PATCH-NOTES-NEXT.txt for the next round. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.25.20',
+    date: '2026-11-10',
+    changes: [
+      'New Beats tab: producers can publish their beats and everyone can listen, download them free or drop them straight into a session (free for now, credit the producer).',
+    ],
+  },
+  {
     version: '0.25.19',
     date: '2026-11-10',
     changes: [
