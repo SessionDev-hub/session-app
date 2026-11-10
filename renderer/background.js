@@ -4,7 +4,7 @@
   const S = window.Studio;
   const B = (S.background = {});
   const KEY = 'ps.background';
-  const DEFAULTS = { color: '#0b0c10', image: null, fit: 'cover', dim: 0.3, glass: 1 };
+  const DEFAULTS = { color: '#0b0c10', image: null, fit: 'cover', dim: 0.3, glass: 1, live: null, liveSpeed: 1 };
   const BASE = { panel: [19, 20, 25], panel2: [28, 30, 37], canvas: [13, 14, 18] };
   let cfg = Object.assign({}, DEFAULTS);
   let layer;
@@ -52,9 +52,65 @@
     layer.style.backgroundSize = cfg.fit === 'tile' ? 'auto' : cfg.fit;
     layer.style.backgroundRepeat = cfg.fit === 'tile' ? 'repeat' : 'no-repeat';
     layer.style.backgroundPosition = 'center';
-    layer.style.setProperty('--dim', cfg.image ? cfg.dim : 0);
+    layer.style.setProperty('--dim', cfg.image || cfg.live ? cfg.dim : 0);
+    applyLive();
     if (S.timeline) S.timeline.dirty = true;
   }
+
+  /* ---------- live (moving) backgrounds ----------
+   * Built-in scenes are big soft colour blobs moved ONLY with CSS transforms, so the GPU compositor animates
+   * them on its own thread — the timeline, meters and audio never wait on them. Your own video / GIF plays
+   * in a hardware-decoded <video>/<img>. While a live background is on, the glass blur behind panels is
+   * switched off (re-blurring a moving picture every frame is what would cost smoothness). */
+  const SCENES = {
+    aurora: { name: 'Aurora', base: '#05060c', blobs: ['#22d3ee', '#8b5cf6', '#10b981', '#3b82f6'] },
+    sunset: { name: 'Sunset Glow', base: '#0d0507', blobs: ['#f97316', '#ec4899', '#facc15', '#ef4444'] },
+    ocean: { name: 'Ocean Drift', base: '#03080f', blobs: ['#0ea5e9', '#2563eb', '#14b8a6', '#1e3a8a'] },
+    neon: { name: 'Neon Night', base: '#06040d', blobs: ['#d946ef', '#22d3ee', '#a3e635', '#f43f5e'] },
+    lava: { name: 'Lava', base: '#0c0403', blobs: ['#dc2626', '#ea580c', '#7f1d1d', '#f59e0b'] },
+    accent: { name: 'Accent Glow (follows your accent colour)', base: '#07070b', blobs: ['var(--accent)', 'rgb(var(--accent-deep-rgb))', 'rgb(var(--accent-light-rgb))', 'var(--accent)'] },
+  };
+  B.SCENES = SCENES;
+  let liveEl = null, liveKey = '', mediaUrl = null;
+  function clearLive() { if (liveEl) { liveEl.remove(); liveEl = null; } if (mediaUrl) { URL.revokeObjectURL(mediaUrl); mediaUrl = null; } liveKey = ''; document.documentElement.classList.remove('bg-live'); }
+  async function applyLive() {
+    const key = (cfg.live || '') + '|' + cfg.liveSpeed;
+    if (!cfg.live) return clearLive();
+    document.documentElement.classList.add('bg-live');
+    if (key === liveKey && liveEl) return;
+    clearLive(); document.documentElement.classList.add('bg-live'); liveKey = key;
+    const box = document.createElement('div'); box.className = 'bg-live-box';
+    box.style.setProperty('--bg-speed', String(1 / Math.max(0.25, cfg.liveSpeed || 1)));
+    if (cfg.live === 'video') {
+      const f = await mediaGet();
+      if (!f || liveKey !== key) return;
+      mediaUrl = URL.createObjectURL(f.blob);
+      const m = document.createElement(/^image\//.test(f.type) ? 'img' : 'video');
+      m.className = 'bg-live-media'; m.src = mediaUrl;
+      if (m.tagName === 'VIDEO') { m.muted = true; m.loop = true; m.playsInline = true; m.autoplay = true; m.setAttribute('muted', ''); m.playbackRate = Math.max(0.25, Math.min(2, cfg.liveSpeed || 1)); m.play().catch(() => {}); }
+      box.appendChild(m);
+    } else {
+      const sc = SCENES[cfg.live] || SCENES.aurora;
+      box.style.background = sc.base;
+      sc.blobs.forEach((c, i) => { const b = document.createElement('i'); b.className = 'bg-blob b' + i; b.style.setProperty('--c', c); box.appendChild(b); });
+    }
+    (layer || document.body).appendChild(box);
+    liveEl = box;
+  }
+  // a hidden window doesn't need a moving background
+  document.addEventListener('visibilitychange', () => { const v = liveEl && liveEl.querySelector('video'); if (v) document.hidden ? v.pause() : v.play().catch(() => {}); });
+
+  /* your own video / GIF, kept in IndexedDB (too big for normal settings storage) */
+  const db = () => new Promise((res, rej) => { const q = indexedDB.open('session-bg', 1); q.onupgradeneeded = () => q.result.createObjectStore('files'); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); });
+  async function mediaPut(blob, type) { const d = await db(); await new Promise((res, rej) => { const t = d.transaction('files', 'readwrite'); t.objectStore('files').put({ blob, type }, 'video'); t.oncomplete = res; t.onerror = () => rej(t.error); }); }
+  async function mediaGet() { try { const d = await db(); return await new Promise((res) => { const q = d.transaction('files').objectStore('files').get('video'); q.onsuccess = () => res(q.result || null); q.onerror = () => res(null); }); } catch (e) { return null; } }
+  B.setLiveFile = async (file) => {
+    if (!file || !/^(video\/|image\/gif)/.test(file.type)) throw new Error('Pick a video (MP4 / WebM) or an animated GIF');
+    if (file.size > 300 * 1024 * 1024) throw new Error('That video is over 300 MB — use a shorter or smaller one');
+    await mediaPut(file, file.type);
+    liveKey = '';
+    B.set({ live: 'video', glass: cfg.glass > 0.85 ? 0.72 : cfg.glass });
+  };
 
   function save() {
     try {
@@ -123,6 +179,11 @@
     root.innerHTML = `
       <div class="param"><label>Colour</label><input type="color" id="bg-color" style="width:100%;height:30px;padding:0;background:none;border:1px solid var(--line);border-radius:5px"><span></span></div>
       <div id="bg-sw" style="display:flex;flex-wrap:wrap;gap:6px;margin:0 0 6px 130px"></div>
+      <div class="param"><label>Live background</label><select id="bg-live" class="sel"></select><span></span></div>
+      <div class="param" id="bg-live-vid-row"><label>Your video / GIF</label><span style="display:flex;gap:6px"><button class="btn" id="bg-live-pick">Choose video or GIF…</button></span><span></span></div>
+      <div class="param"><label>Motion speed</label><input type="range" id="bg-live-speed" min="25" max="200" step="5"><span class="val" id="bg-live-speed-v"></span></div>
+      <p class="hint" style="color:var(--dim);margin:2px 0 12px">Moving backgrounds run on the graphics card, so the timeline, meters and audio stay just as smooth. Your own video (MP4 / WebM) loops silently — 1080p or smaller keeps it light.</p>
+      <input type="file" id="bg-live-file" accept="video/mp4,video/webm,video/*,image/gif" hidden>
       <div class="param"><label>Picture</label><span style="display:flex;gap:6px"><button class="btn" id="bg-pick">Choose picture…</button><button class="btn" id="bg-clear">Remove</button></span><span class="hint">Best around <b>1920×1080</b> (16:9) and set “Fill the window”, so it isn’t stretched or blurry.</span></div>
       <div class="param"><label>Picture fit</label><select id="bg-fit" class="sel"><option value="cover">Fill the window</option><option value="contain">Fit inside</option><option value="tile">Tile</option></select><span></span></div>
       <div class="param"><label>Darken picture</label><input type="range" id="bg-dim" min="0" max="85" step="1"><span class="val" id="bg-dim-v"></span></div>
@@ -139,8 +200,22 @@
       q('bg-dim-v').textContent = Math.round(c.dim * 100) + '%';
       q('bg-glass').value = Math.round(c.glass * 100);
       q('bg-glass-v').textContent = Math.round(c.glass * 100) + '%';
-      q('bg-dim').disabled = q('bg-fit').disabled = q('bg-clear').disabled = !c.image;
+      q('bg-dim').disabled = !c.image && !c.live;
+      q('bg-fit').disabled = q('bg-clear').disabled = !c.image;
+      q('bg-live').value = c.live || '';
+      q('bg-live-speed').value = Math.round((c.liveSpeed || 1) * 100);
+      q('bg-live-speed-v').textContent = Math.round((c.liveSpeed || 1) * 100) + '%';
+      q('bg-live-speed').disabled = !c.live;
     };
+    const ls = q('bg-live');
+    ls.innerHTML = '<option value="">Off</option>' + Object.keys(SCENES).map((k) => '<option value="' + k + '">' + SCENES[k].name + '</option>').join('') + '<option value="video">Your video / GIF</option>';
+    ls.onchange = async () => {
+      if (ls.value === 'video') { const f = await mediaGet(); if (!f) { q('bg-live-file').click(); sync(); return; } }
+      B.set({ live: ls.value || null, glass: ls.value && B.get().glass > 0.85 ? 0.72 : B.get().glass }); sync();
+    };
+    q('bg-live-pick').onclick = () => q('bg-live-file').click();
+    q('bg-live-file').onchange = async (e) => { const f = e.target.files[0]; e.target.value = ''; if (!f) return; try { await B.setLiveFile(f); sync(); } catch (err) { S.toast(err.message); } };
+    q('bg-live-speed').oninput = (e) => { B.set({ liveSpeed: e.target.value / 100 }); sync(); };
     for (const col of SWATCHES) {
       const b = document.createElement('button');
       b.title = col;

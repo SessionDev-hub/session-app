@@ -307,6 +307,7 @@
   /** Right-click track menu: apply a saved preset, open Match, or change colour. */
   M.trackMenu = (track, x, y) => {
     const items = [];
+    if (S.duplicateTrack) items.push({ label: 'Duplicate track', hint: 'clips + effects', action: () => S.duplicateTrack(track) }, { sep: true });
     // whole-track effect-chain presets (save/load every plugin on the track at once)
     if (S.chainPresets && S.chainPresets.menuItems) {
       items.push(...S.chainPresets.menuItems(track));

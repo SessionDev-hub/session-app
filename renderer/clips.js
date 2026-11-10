@@ -404,6 +404,7 @@
       { label: clip.muted ? 'Unmute clip' : 'Mute clip', action: edit(() => (clip.muted = !clip.muted)) },
       { label: 'Normalize', action: edit(() => ops.normalize(clip) || S.toast('Clip is silent')) },
       { label: 'Reverse', action: edit(() => ops.reverse(clip)) },
+      { label: 'Speed (sped up / slowed)…', hint: 'verse, hook…', action: () => S.speed && S.speed.dialog(clip, track) },
       { sep: true },
       { label: 'Auto-tune…', action: () => S.tools.autoTuneDialog(clip) },
       { label: 'Detect key of this clip', action: () => S.tools.detectKey({ clip }) },

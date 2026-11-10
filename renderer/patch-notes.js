@@ -7,6 +7,15 @@
  * dropped), and empties PATCH-NOTES-NEXT.txt for the next round. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.25.19',
+    date: '2026-11-10',
+    changes: [
+      'New: duplicate a track — right-click a track (or its mixer strip) → Duplicate track. You get the same clips, effects, volume and colour right below it.',
+      'New: speed up or slow down any part of a song — right-click a clip → Speed. Pick “Sped up / slowed” (speed and pitch change together, like the TikTok edits) or “Keep pitch” (only the speed changes, the vocal stays in key). Split a verse first to change just that part, or select several clips to change them together. Later clips move over so nothing overlaps.',
+      'New: live backgrounds — 6 moving scenes (Aurora, Sunset Glow, Ocean Drift, Neon Night, Lava, Accent Glow) or your own video / GIF, with a motion-speed slider, in Settings → Appearance. They run on the graphics card, so the app stays just as smooth.',
+    ],
+  },
+  {
     version: '0.25.18',
     date: '2026-11-10',
     changes: [
