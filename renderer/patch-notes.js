@@ -7,6 +7,13 @@
  * dropped), and empties PATCH-NOTES-NEXT.txt for the next round. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.25.22',
+    date: '2026-11-10',
+    changes: [
+      'Flat style is now properly flat: buttons, tabs, mixer strips, effect chips, menus and dialogs are solid, filled and rounded with no glass, glow or gradients (your background still shows behind the panels).',
+    ],
+  },
+  {
     version: '0.25.21',
     date: '2026-11-10',
     changes: [

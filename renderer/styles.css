@@ -884,13 +884,79 @@ dialog.modal.vibe { width: min(560px, 94vw); max-height: 90vh; overflow: auto; }
 .vibe-row { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
 .vibe-note { color: var(--dim); font-size: 11.5px; }
 
-/* ---------- Flat style (Settings → Appearance): no glass blur, glows or gradients ---------- */
+/* ---------- Flat style (Settings → Appearance) ----------
+   Solid, opaque, rounded controls (buttons, strips, menus): no glass see-through, blur, gradients, glows or inner highlights. */
 html.ui-flat *, html.ui-flat *::before, html.ui-flat *::after { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
-html.ui-flat { --accent-grad: var(--accent); --shadow: 0 1px 0 rgba(0, 0, 0, 0.35); }
-html.ui-flat .btn, html.ui-flat .btn.primary, html.ui-flat .btn.primary:hover, html.ui-flat .fx-chip, html.ui-flat .card, html.ui-flat .strip, html.ui-flat .tool, html.ui-flat .tbtn { box-shadow: none !important; filter: none !important; }
-html.ui-flat .btn.primary { background: var(--accent) !important; }
-html.ui-flat dialog.modal, html.ui-flat .ctxmenu, html.ui-flat .fx-picker, html.ui-flat .toast, html.ui-flat .update-bar { background: rgb(22, 23, 29) !important; box-shadow: 0 0 0 1px var(--line-hi) !important; }
+html.ui-flat {
+  --f-0: #101116;          /* deepest: insets, readouts */
+  --f-1: #17181e;          /* panels */
+  --f-2: #1f2129;          /* cards, strips */
+  --f-3: #2a2c36;          /* buttons */
+  --f-4: #353845;          /* button hover */
+  --field: var(--f-2) !important;
+  --field-hi: var(--f-4) !important;
+  --line: #262832 !important;
+  --line-hi: #343744 !important;
+  --accent-grad: var(--accent);
+  --shadow: none;
+}
+/* surfaces */
+/* panels keep your background showing through (just no blur); the controls on them are solid */
+html.ui-flat #top { background: var(--panel) !important; box-shadow: none !important; }
+html.ui-flat #top { border-bottom: 1px solid var(--line); }
+html.ui-flat .pill, html.ui-flat .seg, html.ui-flat .vt-seg, html.ui-flat .pw-presets { background: var(--f-0) !important; border: 0 !important; box-shadow: none !important; border-radius: 12px; }
+html.ui-flat .pill .div { background: var(--line-hi) !important; }
+html.ui-flat .clock, html.ui-flat .db, html.ui-flat .pk-value, html.ui-flat .txt, html.ui-flat .sel, html.ui-flat .inmeter, html.ui-flat .meter { background: var(--f-0) !important; box-shadow: none !important; }
+html.ui-flat .txt, html.ui-flat .sel { border-color: var(--line-hi) !important; }
+/* buttons: filled, rounded, no borders or glows */
+html.ui-flat .btn, html.ui-flat .btn.ghost, html.ui-flat .tbtn, html.ui-flat .tool, html.ui-flat .tb, html.ui-flat .fx-add, html.ui-flat .add-track, html.ui-flat .vibe-chip, html.ui-flat .bs-chip, html.ui-flat .pw-ib {
+  background: var(--f-3) !important; border: 0 !important; box-shadow: none !important; filter: none !important; color: #e3e5ec;
+}
+html.ui-flat .btn:hover, html.ui-flat .tbtn:hover, html.ui-flat .tool:hover, html.ui-flat .tb:hover, html.ui-flat .fx-add:hover, html.ui-flat .add-track:hover, html.ui-flat .vibe-chip:hover, html.ui-flat .pw-ib:hover { background: var(--f-4) !important; color: #fff; }
+html.ui-flat .btn { border-radius: 10px; }
+html.ui-flat .tb { border-radius: 7px; color: #b9bcc7; }
+html.ui-flat .btn.primary, html.ui-flat .btn.primary:hover, html.ui-flat .bs-chip.on { background: var(--accent) !important; color: #fff !important; }
+html.ui-flat .btn.primary:hover { filter: brightness(1.1) !important; }
+html.ui-flat .btn.accent { background: color-mix(in srgb, var(--accent) 30%, var(--f-2)) !important; color: #fff; }
+html.ui-flat .btn.toggle.on { background: #0e7490 !important; color: #fff !important; }
+html.ui-flat .btn:disabled { background: var(--f-2) !important; }
+html.ui-flat .tbtn { background: var(--f-3) !important; }
+html.ui-flat .tbtn.rec { color: var(--rec); }
+html.ui-flat .tbtn.rec.active { background: var(--rec) !important; color: #fff; animation: none; }
+html.ui-flat .tbtn.play.active { background: var(--ok) !important; color: #05261a; }
+html.ui-flat .tool.active { background: var(--accent) !important; color: #fff; }
+html.ui-flat .tool-thumb { background: var(--accent) !important; box-shadow: none !important; }
+html.ui-flat .tool-thumb ~ .tool, html.ui-flat .tools .tool { background: transparent !important; }
+html.ui-flat .tools .tool:hover { background: var(--f-4) !important; }
+/* tabs */
+html.ui-flat .tabrow { border-bottom: 0; gap: 4px; }
+html.ui-flat .uitab { border-radius: 10px; border-bottom: 0 !important; padding: 7px 14px; margin-bottom: 4px; }
+html.ui-flat .uitab:hover { background: var(--f-2); }
+html.ui-flat .uitab.on { background: var(--f-3) !important; color: #fff; box-shadow: inset 0 -2px 0 var(--accent); }
+html.ui-flat .seg-b.on { background: var(--accent) !important; box-shadow: none !important; color: #fff; }
+html.ui-flat .set-tab.on { background: var(--accent) !important; }
+/* track headers + fx chips */
+html.ui-flat .trk:hover { background: var(--f-2); }
+html.ui-flat .trk.armed { background: #2a1519 !important; }
+html.ui-flat .fx-chip { background: color-mix(in srgb, var(--tc, var(--accent)) 28%, var(--f-2)) !important; border: 0 !important; box-shadow: none !important; }
+html.ui-flat .fx-vibe { color: #ffb26b; }
+/* mixer */
+html.ui-flat .strip, html.ui-flat .strip.master { background: var(--f-2) !important; border: 0 !important; box-shadow: none !important; border-radius: 14px; }
+html.ui-flat .strip.selected { box-shadow: inset 0 0 0 2px var(--tc) !important; }
+html.ui-flat .strip .s-head { background: color-mix(in srgb, var(--tc) 32%, var(--f-2)) !important; border-top: 0 !important; }
+html.ui-flat .strip.master .s-head { background: var(--f-4) !important; }
+html.ui-flat .fader-col::before { background: var(--f-0) !important; }
+html.ui-flat input.fader::-webkit-slider-thumb { background: #e6e7ec !important; box-shadow: none !important; border: 0 !important; border-radius: 6px; }
+html.ui-flat .knob .k-cap { fill: var(--f-4); stroke: none; }
+html.ui-flat .knob .k-track { stroke: var(--f-0); }
+/* menus, dialogs, panels */
+html.ui-flat dialog.modal, html.ui-flat .ctxmenu, html.ui-flat .fx-picker, html.ui-flat .toast, html.ui-flat .update-bar, html.ui-flat .bg-card { background: var(--f-1) !important; border: 1px solid var(--line-hi) !important; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5) !important; }
+html.ui-flat .ctxmenu .item:hover, html.ui-flat .fp-item.active { background: var(--accent) !important; color: #fff; }
+html.ui-flat .set-pane, html.ui-flat .pw-sec, html.ui-flat .mt-preset, html.ui-flat .snd-row, html.ui-flat .vd-song { background: var(--f-2) !important; border: 0 !important; box-shadow: none !important; }
+html.ui-flat .set-tabs { background: var(--f-0) !important; }
+html.ui-flat .set-head, html.ui-flat .vault-dlg, html.ui-flat .pw { background: var(--f-1) !important; }
 html.ui-flat dialog.modal::backdrop { background: rgba(4, 4, 8, 0.7); }
+html.ui-flat .bl-card, html.ui-flat .bs-card { background: var(--f-2) !important; }
 /* theme picker */
 .th-swatches { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 6px 0 4px; }
 .th-sw { width: 34px; height: 34px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.25); }
