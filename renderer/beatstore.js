@@ -143,7 +143,7 @@
       if (!r.ok) throw new Error('The beat store is offline right now (' + r.status + ').');
       const j = await r.json();
       st.beats = more ? st.beats.concat(j.beats) : j.beats; st.total = j.total;
-    } catch (e) { st.error = navigator.onLine === false ? 'You’re offline — connect to the internet to browse beats.' : (e.message || 'Could not load beats.'); }
+    } catch (e) { st.error = navigator.onLine === false ? 'You’re offline — connect to the internet to browse beats.' : e instanceof TypeError ? 'Can’t reach the beat store right now — check your internet and try again.' : (e.message || 'Could not load beats.'); }
     st.loading = false; drawList();
   }
   async function loadMine() {

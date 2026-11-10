@@ -7,6 +7,16 @@
  * dropped), and empties PATCH-NOTES-NEXT.txt for the next round. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.25.21',
+    date: '2026-11-10',
+    changes: [
+      'Low-latency recording: while you record, plugins that add delay on other tracks and the master pause automatically, and your own track no longer waits for delay compensation, so you hear yourself much sooner.',
+      'New "Hear yourself through: My interface (0 ms)" option for true zero-latency direct monitoring, plus a live "you hear yourself X ms late" readout with tips in Settings, Audio.',
+      'Takes line up more accurately: Session now reads your mic\'s real input delay, and uses the delay that was in effect while you recorded.',
+      'Session warns you when you record on Bluetooth headphones (they add 150-300 ms no app can remove).',
+    ],
+  },
+  {
     version: '0.25.20',
     date: '2026-11-10',
     changes: [

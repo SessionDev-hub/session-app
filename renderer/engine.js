@@ -109,6 +109,14 @@
       this.startTime = 0;
       this.sources = [];
       this.latencyOffsetMs = 0;
+      // Low-latency recording: while a take is recording, plugins that add delay on the OTHER tracks and the
+      // master are paused, so the beat reaches your ears with no plugin delay and your own track skips the
+      // delay-compensation wait. They come straight back when you stop. (Like Logic's Low Latency Mode.)
+      this.lowLatency = true;
+      this.llActive = null; // id of the track being recorded while low-latency mode is in effect
+      this.llPaused = 0;    // how many plugins are paused right now
+      // Direct monitoring: you hear yourself through your interface's own monitor (zero latency), not Session.
+      this.directMonitor = false;
       this._buf = null;
       this.rec = null;
       this.mic = null;
@@ -322,13 +330,14 @@
       for (const fx of tr.fx) {
         const inst = this.fxInstance(fx);
         if (!inst || fx.bypass) continue;
+        if (this.llSkip(tr.id, inst)) { this.llPaused++; continue; }
         node.connect(inst.input);
         t.chain.push(inst.output);
         t.latency += inst.latencySeconds();
         node = inst.output;
       }
       node.connect(t.pan);
-      if (this.monitorTrackId === tr.id && this.mic) this.mic.monitor.connect(t.input);
+      if (this.monitorTrackId === tr.id && this.mic && !this.directMonitor) this.mic.monitor.connect(t.input);
     }
 
     /** Master bus: master fader -> master effects -> safety limiter. */
@@ -345,6 +354,7 @@
       for (const fx of this.project.master.fx || []) {
         const inst = this.fxInstance(fx);
         if (!inst || fx.bypass) continue;
+        if (this.llSkip('master', inst)) { this.llPaused++; continue; }
         node.connect(inst.input);
         this.masterChain.push(inst.output);
         this.masterLatency += inst.latencySeconds();
@@ -383,6 +393,7 @@
       const fxIds = new Set([...project.tracks.flatMap((t) => t.fx.map((f) => f.id)), ...(project.master.fx || []).map((f) => f.id)]);
       for (const id of [...this.fx.keys()]) if (!fxIds.has(id)) this.destroyFx(id);
       for (const id of [...this.broken.keys()]) if (!fxIds.has(id)) this.broken.delete(id);
+      this.llPaused = 0;
       for (const tr of project.tracks) this.rebuildTrack(tr);
       this.rebuildMaster();
       this.applyAllMix();
@@ -402,24 +413,58 @@
         t.latency = 0;
         for (const fx of tr.fx) {
           const rec = this.fx.get(fx.id);
-          if (rec && !fx.bypass) t.latency += rec.inst.latencySeconds();
+          if (rec && !fx.bypass && !this.llSkip(tr.id, rec.inst)) t.latency += rec.inst.latencySeconds();
         }
-        max = Math.max(max, t.latency);
+        if (this.llActive !== tr.id) max = Math.max(max, t.latency); // the track you're recording never waits
       }
       this.pdcMax = Math.min(max, 0.95);
       let ml = 0;
       for (const fx of this.project.master.fx || []) {
         const rec = this.fx.get(fx.id);
-        if (rec && !fx.bypass) ml += rec.inst.latencySeconds();
+        if (rec && !fx.bypass && !this.llSkip('master', rec.inst)) ml += rec.inst.latencySeconds();
       }
       this.masterLatency = ml;
       const now = this.ctx.currentTime;
       for (const tr of this.project.tracks) {
         const t = this.tracks.get(tr.id);
         if (!t) continue;
-        t.compTarget = Math.max(0, this.pdcMax - Math.min(t.latency, this.pdcMax));
+        t.compTarget = this.llActive === tr.id ? 0 : Math.max(0, this.pdcMax - Math.min(t.latency, this.pdcMax));
         t.comp.delayTime.setTargetAtTime(t.compTarget, now, 0.02);
       }
+    }
+
+    /** Low-latency recording: should this plugin be paused right now? (Only ones that add delay, never on the recorded track.) */
+    llSkip(trackId, inst) {
+      if (!this.llActive || trackId === this.llActive) return false;
+      try { return inst.latencySeconds() > 0.0005; } catch (e) { return false; }
+    }
+
+    /** Turn low-latency mode on for the track about to record (or off with null). Rebuilds only if it changes anything. */
+    setLowLatencyActive(trackId) {
+      const was = this.llActive;
+      this.llActive = trackId && this.lowLatency ? trackId : null;
+      if (was === this.llActive || !this.project) return 0;
+      let latent = 0;
+      for (const tr of this.project.tracks) for (const fx of tr.fx) { const r = this.fx.get(fx.id); if (r && !fx.bypass && tr.id !== (this.llActive || was) && r.inst.latencySeconds() > 0.0005) latent++; }
+      for (const fx of this.project.master.fx || []) { const r = this.fx.get(fx.id); if (r && !fx.bypass && r.inst.latencySeconds() > 0.0005) latent++; }
+      if (latent) this.sync(this.project); else { this.llPaused = 0; this.updateCompensation(); }
+      return this.llPaused;
+    }
+
+    setDirectMonitor(on) {
+      this.directMonitor = !!on;
+      this.setMonitor(this.monitorTrackId);
+    }
+
+    /** Roughly how late you hear your own voice while recording, in seconds (0 with direct monitoring). */
+    monitorDelay(trackId) {
+      if (this.directMonitor) return 0;
+      const ctx = this.ctx;
+      let s = (ctx.baseLatency || 0) + Math.min(ctx.outputLatency || 0, 0.25) + this.inputLatency();
+      const tr = this.project && this.project.tracks.find((x) => x.id === (trackId || this.monitorTrackId));
+      if (tr) for (const fx of tr.fx) { const r = this.fx.get(fx.id); if (r && !fx.bypass) s += r.inst.latencySeconds(); }
+      if (!this.lowLatency) s += (this.pdcMax || 0) + (this.masterLatency || 0);
+      return s;
     }
 
     /** How much later than the playhead the mix is heard (longest track chain + master chain). */
@@ -606,7 +651,7 @@
         } catch (e) {}
       }
       this.monitorTrackId = trackId;
-      if (trackId && this.mic && this.tracks.has(trackId)) this.mic.monitor.connect(this.tracks.get(trackId).input);
+      if (trackId && this.mic && !this.directMonitor && this.tracks.has(trackId)) this.mic.monitor.connect(this.tracks.get(trackId).input);
     }
 
     get isRecording() {
@@ -624,6 +669,7 @@
       // Make sure the mic is still live (devices get unplugged / ids rotate).
       const micTrack = this.mic.stream && this.mic.stream.getAudioTracks && this.mic.stream.getAudioTracks()[0];
       if (micTrack && micTrack.readyState === 'ended') throw new Error('Your input device went away. Re-select it in Settings → Audio, then record again.');
+      this.setLowLatencyActive(trackId);
       const node = new AudioWorkletNode(ctx, 'rec-processor', { numberOfInputs: 1, numberOfOutputs: 1, channelCountMode: 'max' });
       const silent = ctx.createGain();
       silent.gain.value = 0;
@@ -633,7 +679,7 @@
       // peaks: one max-level value per PEAK_BLOCK samples, so the timeline can draw the take's
       // waveform live while you record (cheap: a few hundred numbers per second).
       const PEAK_BLOCK = 256;
-      const rec = { node, silent, chunks, trackId, startPos: fromPos, firstFrame: null, peaks: [], peakSec: PEAK_BLOCK / ctx.sampleRate, _pk: 0, _pn: 0 };
+      const rec = { node, silent, chunks, trackId, startPos: fromPos, firstFrame: null, lat: this.latencySeconds() + this.totalLatency(), peaks: [], peakSec: PEAK_BLOCK / ctx.sampleRate, _pk: 0, _pn: 0 };
       node.port.onmessage = (e) => {
         if (rec.firstFrame === null) rec.firstFrame = e.data.f;
         const d = e.data.d;
@@ -666,6 +712,7 @@
       r.node.disconnect();
       r.silent.disconnect();
       this.stop();
+      this.setLowLatencyActive(null); // paused plugins come back
       const total = r.chunks.reduce((n, c) => n + c.length, 0);
       if (!total) return null;
       const buffer = this.ctx.createBuffer(1, total, this.ctx.sampleRate);
@@ -681,7 +728,8 @@
       // input) plus the manual nudge. Everything before that point is dead air and gets trimmed.
       const sr = this.ctx.sampleRate;
       const lead = r.firstFrame === null ? 0 : Math.max(0, this.startTime - r.firstFrame / sr);
-      const latency = this.latencySeconds() + this.totalLatency();
+      // the delay that was in effect WHILE recording (low-latency mode changes it)
+      const latency = r.lat != null ? r.lat : this.latencySeconds() + this.totalLatency();
       const shift = lead + latency + this.latencyOffsetMs / 1000;
       const compensation = S.clamp(shift, 0, buffer.duration * 0.5);
       const startShift = shift < 0 ? -shift : 0; // negative nudge: the take lands later instead
@@ -704,7 +752,11 @@
       try {
         const t = this.mic && this.mic.stream.getAudioTracks()[0];
         const l = t && t.getSettings && t.getSettings().latency;
-        return typeof l === 'number' && l >= 0 && l < 0.5 ? l : 0;
+        if (typeof l === 'number' && l > 0 && l < 0.5) return l;
+        // newer Chromium reports the real capture delay in track.stats (seconds)
+        const st = t && t.stats;
+        const a = st && (st.averageLatency || st.latency);
+        return typeof a === 'number' && a > 0 && a < 0.3 ? a : 0;
       } catch (e) {
         return 0;
       }

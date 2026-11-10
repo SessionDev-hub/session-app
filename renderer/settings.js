@@ -363,6 +363,50 @@
       rec.appendChild(rrow);
       body.appendChild(rec);
 
+      // ---- Zero-latency recording ----
+      const zl = document.createElement('div');
+      zl.className = 'set-pane';
+      zl.innerHTML =
+        '<div class="set-sec-t">Zero-latency recording</div>' +
+        '<div class="param"><label>Hear yourself through</label><span class="seg rec-seg" id="set-mon-src"></span></div>' +
+        '<p class="hint" id="set-mon-hint"></p>' +
+        '<div class="su-auto-row"><span class="su-auto-l">Low-latency recording</span><label class="su-switch"><input type="checkbox" id="set-lowlat"><span></span></label></div>' +
+        '<p class="hint">While you record, plugins that add delay on the other tracks and the master are paused (they come back when you stop), and your own track never waits for delay compensation.</p>' +
+        '<div class="param"><label>You hear yourself</label><span id="set-mon-ms" class="val"></span><span></span></div>' +
+        '<p class="hint" id="set-mon-tips"></p>';
+      body.appendChild(zl);
+      const monSeg = zl.querySelector('#set-mon-src'), ll = zl.querySelector('#set-lowlat');
+      ll.checked = S.engine.lowLatency !== false;
+      const monRead = () => {
+        const eng = S.engine, direct = !!eng.directMonitor;
+        const armed = S.project.tracks.find((t) => t.arm);
+        const ms = Math.round(eng.monitorDelay(armed && armed.id) * 1000);
+        zl.querySelector('#set-mon-hint').innerHTML = direct
+          ? 'Session stays silent for your mic — turn on <b>Direct Monitor</b> (or the “Mix / Monitor” knob) on your audio interface and you hear yourself with <b>0 ms</b> delay. Your effects are still recorded on playback, you just don’t hear them live.'
+          : 'You hear your voice through Session with your effects (Auto-Tune, reverb…). Delay depends on your device — see below.';
+        zl.querySelector('#set-mon-ms').textContent = direct ? '0 ms late (direct)' : '≈ ' + ms + ' ms late';
+        const tips = [];
+        if (!direct && ms > 20) {
+          tips.push('Under ~12 ms feels instant; above ~20 ms you start to hear an echo.');
+          tips.push('Fastest fixes: wired headphones (never Bluetooth), plug them into your audio interface, and set the interface’s buffer to 64 or 128 samples in its own control panel.');
+          if (armed && armed.fx.some((f) => !f.bypass && /^vst3:/.test(f.pluginId || ''))) tips.push('VST3 plugins on the track you record add ~17 ms each — record with Session’s own effects, then switch to the VSTs for the mix.');
+          tips.push('Have an interface with a Direct Monitor knob? Pick “My interface” above for true zero latency.');
+        }
+        zl.querySelector('#set-mon-tips').innerHTML = tips.join('<br>');
+      };
+      [[false, 'Session (with effects)'], [true, 'My interface — 0 ms']].forEach(([v, label]) => {
+        const b = document.createElement('button'); b.type = 'button';
+        b.className = 'seg-b' + (!!S.engine.directMonitor === v ? ' on' : ''); b.textContent = label;
+        b.onclick = () => {
+          S.engine.setDirectMonitor(v);
+          try { localStorage.setItem('ps.directMon', v ? '1' : '0'); } catch (e) {}
+          monSeg.querySelectorAll('.seg-b').forEach((x) => x.classList.remove('on')); b.classList.add('on'); monRead();
+        };
+        monSeg.appendChild(b);
+      });
+      ll.onchange = () => { S.engine.lowLatency = ll.checked; try { localStorage.setItem('ps.lowLatency', ll.checked ? '1' : '0'); } catch (e) {} monRead(); };
+      monRead();
+
       const box = document.createElement('div');
       box.className = 'set-pane';
       box.innerHTML =

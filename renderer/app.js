@@ -136,12 +136,30 @@
     // Auto latency: the first time you record on a mic/output combo, measure the delay (one time)
     if (autoLatencyOn() && needsAutoMeasure()) await autoMeasureLatency();
     playFrom = S.playhead;
+    await warnBluetooth();
     try {
       await S.engine.startRecording(armed.id, S.playhead);
     } catch (e) {
+      S.engine.setLowLatencyActive(null);
       return S.toast(e.message);
     }
+    if (S.engine.llPaused && !warnedPaused) { warnedPaused = true; S.toast('Low-latency recording: ' + S.engine.llPaused + ' plugin' + (S.engine.llPaused > 1 ? 's that add' : ' that adds') + ' delay on other tracks paused while you record — they come back when you stop.'); }
     updateButtons();
+  }
+  let warnedPaused = false, warnedBt = false;
+  /** Bluetooth headphones/mics add 150-300 ms that nothing can remove. Say so once per session. */
+  async function warnBluetooth() {
+    if (warnedBt) return;
+    try {
+      const devs = await navigator.mediaDevices.enumerateDevices();
+      const inId = $('sel-input').value, outId = S.engine.outputDevice || 'default';
+      const pick = (kind, id) => devs.find((d) => d.kind === kind && d.deviceId === id) || devs.find((d) => d.kind === kind && d.deviceId === 'default') || devs.find((d) => d.kind === kind);
+      const labels = [pick('audioinput', inId || 'default'), pick('audiooutput', outId)].map((d) => (d && d.label) || '').join(' | ');
+      if (/bluetooth|airpods|buds|hands-?free|wh-1000|wf-1000|beats|jbl|bose|soundcore/i.test(labels)) {
+        warnedBt = true;
+        S.toast('You’re on Bluetooth — it adds 150–300 ms of delay no app can remove. For zero-delay recording use wired headphones (or your interface’s headphone jack).');
+      }
+    } catch (e) {}
   }
 
   // Loudest sample in a take. Below this the mic captured nothing usable (a quiet
@@ -766,6 +784,7 @@
     S.ctx = new AudioContext({ latencyHint: 'interactive' });
     await S.prepareContext(S.ctx);
     S.engine = new S.Engine(S.ctx);
+    try { S.engine.lowLatency = localStorage.getItem('ps.lowLatency') !== '0'; S.engine.directMonitor = localStorage.getItem('ps.directMon') === '1'; } catch (e) {}
     splash(65, 'Looking for VST3 plugins…');
     S.native.loadCached();
     splash(80, 'Building your studio…');
