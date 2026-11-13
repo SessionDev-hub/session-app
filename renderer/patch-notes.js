@@ -7,6 +7,13 @@
  * dropped), and empties PATCH-NOTES-NEXT.txt for the next round. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.25.26',
+    date: '2026-11-13',
+    changes: [
+      '8 new plugins: Opto Comp (BA-2A style two-knob leveler), Graphic EQ (10 bands), Tremolo, Auto-Wah, Amp (overdrive, tube, distortion, fuzz with speaker cabinets), Rotary speaker, Ring Mod and Octaver, each with presets. They work on Android too, and BandLab preset imports can now use them.',
+    ],
+  },
+  {
     version: '0.25.25',
     date: '2026-11-13',
     changes: [
