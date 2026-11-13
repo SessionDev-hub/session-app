@@ -888,11 +888,7 @@ dialog.modal.vibe { width: min(560px, 94vw); max-height: 90vh; overflow: auto; }
    Solid, opaque, rounded controls (buttons, strips, menus): no glass see-through, blur, gradients, glows or inner highlights. */
 html.ui-flat *, html.ui-flat *::before, html.ui-flat *::after { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
 html.ui-flat {
-  --f-0: #101116;          /* deepest: insets, readouts */
-  --f-1: #17181e;          /* panels */
-  --f-2: #1f2129;          /* cards, strips */
-  --f-3: #2a2c36;          /* buttons */
-  --f-4: #353845;          /* button hover */
+  /* --f-0 … --f-4 (deepest → button hover) and --flat-panel are set by theme.js from the accent colour */
   --field: var(--f-2) !important;
   --field-hi: var(--f-4) !important;
   --line: #262832 !important;
@@ -902,7 +898,7 @@ html.ui-flat {
 }
 /* surfaces */
 /* panels keep your background showing through (just no blur); the controls on them are solid */
-html.ui-flat #top { background: var(--panel) !important; box-shadow: none !important; }
+html.ui-flat #top, html.ui-flat #tl-headers, html.ui-flat #mix-panel { background: var(--flat-panel, var(--panel)) !important; box-shadow: none !important; }
 html.ui-flat #top { border-bottom: 1px solid var(--line); }
 html.ui-flat .pill, html.ui-flat .seg, html.ui-flat .vt-seg, html.ui-flat .pw-presets { background: var(--f-0) !important; border: 0 !important; box-shadow: none !important; border-radius: 12px; }
 html.ui-flat .pill .div { background: var(--line-hi) !important; }
@@ -983,3 +979,7 @@ html.ui-flat .bl-card, html.ui-flat .bs-card { background: var(--f-2) !important
 /* no glass blur over a moving background: re-blurring every frame is what costs smoothness */
 html.bg-live *, html.bg-live *::before, html.bg-live *::after { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
 @media (prefers-reduced-motion: reduce) { .bg-blob { animation-duration: 240s !important; } }
+
+/* Glass panels pick up a wash of the accent colour (amount = Settings → Appearance → Panel colour) */
+html:not(.ui-flat) #tl-headers, html:not(.ui-flat) #mix-panel, html:not(.ui-flat) .strip { box-shadow: inset 0 0 0 100vmax var(--panel-tint, transparent); }
+html:not(.ui-flat) #top { box-shadow: inset 0 0 0 100vmax var(--panel-tint, transparent), 0 10px 30px -12px rgba(0, 0, 0, 0.55); }

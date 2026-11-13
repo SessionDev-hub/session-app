@@ -7,6 +7,15 @@
  * dropped), and empties PATCH-NOTES-NEXT.txt for the next round. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.25.23',
+    date: '2026-11-13',
+    changes: [
+      'New Playback buffer setting (Settings, Audio): Lowest delay, Balanced or Stable. If playback skips ahead or stutters, pick Stable and restart Session. Session now notices when playback is skipping and tells you how to fix it.',
+      'Panels, mixer strips and buttons now take on your accent colour, with a Panel colour slider to set how much (Settings, Appearance), in both Glass and Flat.',
+      'New Flat panel opacity slider: make Flat panels fully solid or let your background show through.',
+    ],
+  },
+  {
     version: '0.25.22',
     date: '2026-11-10',
     changes: [

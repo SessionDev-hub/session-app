@@ -363,6 +363,29 @@
       rec.appendChild(rrow);
       body.appendChild(rec);
 
+      // ---- Playback buffer ----
+      const pbuf = document.createElement('div');
+      pbuf.className = 'set-pane';
+      pbuf.innerHTML =
+        '<div class="set-sec-t">Playback buffer</div>' +
+        '<div class="param"><label>Buffer</label><span class="seg rec-seg" id="set-buf"></span></div>' +
+        '<p class="hint" id="set-buf-hint"></p>';
+      body.appendChild(pbuf);
+      const BUF = [['low', 'Lowest delay'], ['balanced', 'Balanced'], ['stable', 'Stable']];
+      const bufNow = () => { try { return localStorage.getItem('ps.audioBuffer') || 'low'; } catch (e) { return 'low'; } };
+      const bufHint = () => {
+        const v = bufNow(), running = S.audioBuffer || 'low';
+        const what = { low: 'Smallest buffer: you hear yourself soonest while recording. If playback skips or crackles, pick Balanced or Stable.', balanced: 'A bit more buffer: stops most skipping, adds a few ms when you hear yourself.', stable: 'Biggest buffer: playback never skips, even on a busy or older computer. You hear yourself later while recording (use “My interface — 0 ms” below for that).' }[v];
+        pbuf.querySelector('#set-buf-hint').innerHTML = what + (v !== running ? ' <b>Restart Session to apply</b> (save your session first).' : '');
+      };
+      BUF.forEach(([v, label]) => {
+        const b = document.createElement('button'); b.type = 'button';
+        b.className = 'seg-b' + (bufNow() === v ? ' on' : ''); b.textContent = label;
+        b.onclick = () => { try { localStorage.setItem('ps.audioBuffer', v); } catch (e) {} pbuf.querySelectorAll('.seg-b').forEach((x) => x.classList.remove('on')); b.classList.add('on'); bufHint(); };
+        pbuf.querySelector('#set-buf').appendChild(b);
+      });
+      bufHint();
+
       // ---- Zero-latency recording ----
       const zl = document.createElement('div');
       zl.className = 'set-pane';

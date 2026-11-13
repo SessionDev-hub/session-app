@@ -427,6 +427,38 @@
     ]);
   }
 
+  /* ---------- skip / stutter watch ----------
+   * When the computer can't feed the sound card in time, the audio drops a chunk and jumps ahead. The
+   * output clock then slips against the system clock (or Chromium counts an underrun). Count those
+   * while playing; after a few, offer the bigger "Stable" buffer once per run. */
+  const glitch = { off: null, times: [], offered: false, last: 0 };
+  S.glitchStats = () => ({ recent: glitch.times.length, buffer: S.audioBuffer });
+  setInterval(() => {
+    const E = S.engine;
+    if (!E || !E.playing || !S.ctx) { glitch.off = null; return; }
+    let hit = 0;
+    try {
+      const ps = S.ctx.playoutStats;
+      if (ps && typeof ps.underrunEvents === 'number') { if (glitch.last && ps.underrunEvents > glitch.last) hit = ps.underrunEvents - glitch.last; glitch.last = ps.underrunEvents; }
+      const ts = S.ctx.getOutputTimestamp && S.ctx.getOutputTimestamp();
+      if (ts && ts.performanceTime > 0 && ts.contextTime > 0) {
+        const off = ts.contextTime - ts.performanceTime / 1000;
+        if (glitch.off != null && Math.abs(off - glitch.off) > 0.04) hit = Math.max(hit, 1);
+        glitch.off = off;
+      }
+    } catch (e) {}
+    if (!hit) return;
+    const now = Date.now();
+    for (let i = 0; i < hit; i++) glitch.times.push(now);
+    glitch.times = glitch.times.filter((t) => now - t < 30000);
+    console.warn('[Session] audio skipped/stuttered (' + glitch.times.length + ' in the last 30 s, buffer: ' + S.audioBuffer + ')');
+    if (glitch.times.length >= 3 && !glitch.offered && S.audioBuffer !== 'stable') {
+      glitch.offered = true;
+      const live = document.documentElement.classList.contains('bg-live');
+      S.toast('Playback is skipping — your computer can’t keep up at the current audio buffer. Fix: Settings → Audio → Playback buffer → Stable, then restart Session.' + (live ? ' Turning off the live background also helps.' : ''));
+    }
+  }, 500);
+
   /* ---------- main loop ---------- */
   let inShown = 0;
   function loop() {
@@ -781,7 +813,11 @@
       console.warn(e);
     }
     splash(45, 'Starting the audio engine…');
-    S.ctx = new AudioContext({ latencyHint: 'interactive' });
+    // Audio buffer (Settings → Audio → Playback buffer). Smaller = you hear yourself sooner while recording,
+    // bigger = playback can't stutter/skip when the computer is busy. Applied when Session starts.
+    S.audioBuffer = (() => { try { return localStorage.getItem('ps.audioBuffer') || 'low'; } catch (e) { return 'low'; } })();
+    const HINTS = { low: 'interactive', balanced: 'balanced', stable: 'playback' };
+    try { S.ctx = new AudioContext({ latencyHint: HINTS[S.audioBuffer] || 'interactive' }); } catch (e) { S.ctx = new AudioContext({ latencyHint: 'interactive' }); }
     await S.prepareContext(S.ctx);
     S.engine = new S.Engine(S.ctx);
     try { S.engine.lowLatency = localStorage.getItem('ps.lowLatency') !== '0'; S.engine.directMonitor = localStorage.getItem('ps.directMon') === '1'; } catch (e) {}
