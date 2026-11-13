@@ -983,3 +983,43 @@ html.bg-live *, html.bg-live *::before, html.bg-live *::after { backdrop-filter:
 /* Glass panels pick up a wash of the accent colour (amount = Settings → Appearance → Panel colour) */
 html:not(.ui-flat) #tl-headers, html:not(.ui-flat) #mix-panel, html:not(.ui-flat) .strip { box-shadow: inset 0 0 0 100vmax var(--panel-tint, transparent); }
 html:not(.ui-flat) #top { box-shadow: inset 0 0 0 100vmax var(--panel-tint, transparent), 0 10px 30px -12px rgba(0, 0, 0, 0.55); }
+
+/* ---------- Beat Lab + Beats tab follow Glass / Flat ----------
+   While one is open the studio behind it is hidden, so the page sits on your background like every other panel. */
+body.bl-open #top, body.bl-open main, body.bl-open #view-tabs, body.bs-open #top, body.bs-open main, body.bs-open #view-tabs { visibility: hidden; }
+/* Glass: see-through panel with blur + your accent wash */
+html:not(.ui-flat) #beatlab, html:not(.ui-flat) #beatstore {
+  background: var(--panel) !important; box-shadow: inset 0 0 0 100vmax var(--panel-tint, transparent);
+  backdrop-filter: blur(24px) saturate(150%); -webkit-backdrop-filter: blur(24px) saturate(150%);
+}
+html:not(.ui-flat) #beatlab .bl-scroll { background: rgba(0, 0, 0, 0.28); border-color: rgba(255, 255, 255, 0.08); }
+html:not(.ui-flat) #beatlab .bl-name { background: linear-gradient(180deg, rgba(48, 51, 64, 0.92), rgba(32, 34, 44, 0.92)); }
+html:not(.ui-flat) #beatlab .bl-cell, html:not(.ui-flat) #beatlab .bl-pc { background: rgba(255, 255, 255, 0.045); border-color: rgba(255, 255, 255, 0.07); }
+html:not(.ui-flat) #beatlab .bl-cell.beat4, html:not(.ui-flat) #beatlab .bl-pc.beat4 { background: rgba(255, 255, 255, 0.085); }
+html:not(.ui-flat) #beatlab .bl-cell.on { background: linear-gradient(180deg, #ffbe5c, #ff7a1f); }
+html:not(.ui-flat) #beatlab .bl-pc.on { background: linear-gradient(180deg, #9aa6ff, #5c6cff); }
+html:not(.ui-flat) #beatlab .bl-pc.tail { background: rgba(110, 120, 255, 0.38); }
+html:not(.ui-flat) #beatstore .bs-card { background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.025)); border-color: rgba(255, 255, 255, 0.09); }
+html:not(.ui-flat) #beatlab .bl-num, html:not(.ui-flat) #beatlab select.bl-sel, html:not(.ui-flat) #beatstore .bs-search { background: rgba(0, 0, 0, 0.3); }
+/* Flat: solid, filled, rounded, tinted by the accent like the rest of Flat */
+html.ui-flat #beatlab, html.ui-flat #beatstore { background: var(--flat-panel, var(--f-1)) !important; box-shadow: none !important; }
+html.ui-flat #beatlab .bl-top, html.ui-flat #beatstore .bs-top, html.ui-flat #beatstore .bs-bar { border-bottom: 0; }
+html.ui-flat #beatlab .bl-grp { background: var(--f-2); border: 0; }
+html.ui-flat #beatlab .bl-scroll { background: var(--f-1); border: 0; }
+html.ui-flat #beatlab .bl-name { background: var(--f-3); border: 0; box-shadow: none; border-radius: 0 10px 10px 0; }
+html.ui-flat #beatlab .bl-ruler .bl-name { background: transparent; }
+html.ui-flat #beatlab .bl-cell, html.ui-flat #beatlab .bl-pc { background: var(--f-2); border: 0; box-shadow: none; }
+html.ui-flat #beatlab .bl-cell.beat4, html.ui-flat #beatlab .bl-pc.beat4 { background: var(--f-3); }
+html.ui-flat #beatlab .bl-cell.on { background: #ff8a2a; box-shadow: none; }
+html.ui-flat #beatlab .bl-pc.on { background: #6f7cff; box-shadow: none; }
+html.ui-flat #beatlab .bl-pc.tail { background: rgba(111, 124, 255, 0.45); }
+html.ui-flat #beatlab .bl-led { background: var(--f-0); border: 0; }
+html.ui-flat #beatlab .bl-mute.on { background: #ff5a4e; box-shadow: none; }
+html.ui-flat #beatlab .bl-solo.on { background: #36d47a; box-shadow: none; }
+html.ui-flat #beatlab .bl-num, html.ui-flat #beatlab select.bl-sel, html.ui-flat #beatstore .bs-search { background: var(--f-0); border: 0; }
+html.ui-flat #beatlab .bl-tab.on { background: var(--accent); }
+html.ui-flat #beatlab .bl-blk { background: color-mix(in srgb, var(--accent) 45%, var(--f-2)); border: 0; }
+html.ui-flat #beatlab .bl-blk button { background: var(--f-0); border: 0; }
+html.ui-flat #beatlab .bl-key.black { background: var(--f-0); }
+html.ui-flat #beatstore .bs-card { background: var(--f-2); border: 0; }
+html.ui-flat #beatstore .bs-info span { background: var(--f-3); }

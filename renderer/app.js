@@ -424,6 +424,8 @@
       { label: 'MP3 — 256 kbps', hint: 'great', action: () => exportSong('mp3', 256) },
       { label: 'MP3 — 192 kbps', hint: 'smaller file', action: () => exportSong('mp3', 192) },
       { label: 'MP3 — 128 kbps', hint: 'smallest', action: () => exportSong('mp3', 128) },
+      { sep: true },
+      { label: 'Stems — every track as its own file…', hint: 'for FL, Ableton, Pro Tools', action: () => S.stems && S.stems.dialog() },
     ]);
   }
 

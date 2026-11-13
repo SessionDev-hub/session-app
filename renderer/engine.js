@@ -368,13 +368,16 @@
       const anySolo = this.project.tracks.some((x) => x.solo);
       const audible = !tr.mute && (!anySolo || tr.solo);
       const now = this.ctx.currentTime;
+      // offline renders (export, stems) start at the exact level — a ramp would fade the first 30 ms in/out
+      if (this.offline) { t.vol.gain.value = audible ? tr.vol : 0; t.pan.pan.value = tr.pan; return; }
       t.vol.gain.setTargetAtTime(audible ? tr.vol : 0, now, 0.01);
       t.pan.pan.setTargetAtTime(tr.pan, now, 0.01);
     }
 
     applyAllMix() {
       for (const tr of this.project.tracks) this.applyTrackMix(tr);
-      this.master.gain.setTargetAtTime(this.project.master.vol, this.ctx.currentTime, 0.01);
+      if (this.offline) this.master.gain.value = this.project.master.vol;
+      else this.master.gain.setTargetAtTime(this.project.master.vol, this.ctx.currentTime, 0.01);
     }
 
     /** Make the audio graph match the project. Call after structural changes. */

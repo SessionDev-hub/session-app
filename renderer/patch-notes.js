@@ -7,6 +7,15 @@
  * dropped), and empties PATCH-NOTES-NEXT.txt for the next round. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.25.25',
+    date: '2026-11-13',
+    changes: [
+      'New: Export stems (Export menu, Stems). Every track as its own WAV or FLAC file, all lined up from 0:00, in one zip: Mixed (with each track\'s effects, volume and pan), Raw (no effects) or both, plus the full mix if you want it. Drop them straight into FL Studio, Ableton, Pro Tools or Logic.',
+      'Beat Lab and the Beats tab now follow your Glass or Flat style and accent colour instead of a plain flat page.',
+      'Exports start at the exact track levels (no tiny fade on the first moment of the song).',
+    ],
+  },
+  {
     version: '0.25.24',
     date: '2026-11-13',
     changes: [

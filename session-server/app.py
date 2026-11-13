@@ -503,7 +503,29 @@ def beat_delete(bid):
 # Claude reads every BandLab effect and knob and maps them onto Session's effects. The Anthropic key
 # lives only in this server's secrets (ANTHROPIC_API_KEY), never in the app.
 ANTHROPIC_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
-ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-5")
+ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "")   # empty = pick the newest Sonnet automatically
+_model_cache = {"id": None}
+
+
+def _ai_headers():
+    return {"x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json"}
+
+
+def _pick_model(force=False):
+    """Use ANTHROPIC_MODEL if set; otherwise ask Anthropic which models this key has and take the newest Sonnet
+    (falls back to the newest model of any kind). Model names change over time, so nothing is hard-coded."""
+    if ANTHROPIC_MODEL and not force:
+        return ANTHROPIC_MODEL
+    if _model_cache["id"] and not force:
+        return _model_cache["id"]
+    try:
+        r = requests.get("https://api.anthropic.com/v1/models?limit=100", headers=_ai_headers(), timeout=15)
+        ids = [m.get("id", "") for m in (r.json().get("data") or [])] if r.status_code == 200 else []
+    except (requests.RequestException, ValueError):
+        ids = []
+    pick = next((i for i in ids if "sonnet" in i), None) or (ids[0] if ids else None)
+    _model_cache["id"] = pick
+    return pick
 AI_PER_USER_DAY = int(os.environ.get("AI_PER_USER_DAY", "25"))
 AI_GLOBAL_DAY = int(os.environ.get("AI_GLOBAL_DAY", "400"))     # cost guard for the whole server
 IMG_MAX = 5 * 1024 * 1024
@@ -585,15 +607,23 @@ def bandlab_import():
     q = _ai_take_quota(user["id"])
     if q:
         return _err(q, 429)
+    def call(model):
+        return requests.post("https://api.anthropic.com/v1/messages", timeout=90, headers=_ai_headers(),
+                             json={"model": model, "max_tokens": 4000, "messages": [{"role": "user", "content": content}]})
     try:
-        r = requests.post("https://api.anthropic.com/v1/messages", timeout=90, headers={
-            "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json",
-        }, json={"model": ANTHROPIC_MODEL, "max_tokens": 4000, "messages": [{"role": "user", "content": content}]})
+        model = _pick_model()
+        if not model:
+            return _err("the AI key can't see any models — check the key in the Anthropic console", 502)
+        r = call(model)
+        if r.status_code == 404:          # that model name is retired / not on this key: find the current one
+            newer = _pick_model(force=True)
+            if newer and newer != model:
+                r = call(newer)
     except requests.RequestException:
         return _err("couldn't reach the AI service, try again", 502)
     if r.status_code != 200:
         app.logger.warning("anthropic %s %s", r.status_code, r.text[:300])
-        return _err("the AI service had a problem (%d), try again" % r.status_code, 502)
+        return _err("the AI service had a problem (%d%s), try again" % (r.status_code, ", check the API key" if r.status_code in (401, 403) else ""), 502)
     out = "".join(x.get("text", "") for x in r.json().get("content", []) if x.get("type") == "text").strip()
     m = re.search(r"\{[\s\S]*\}", out)
     try:
