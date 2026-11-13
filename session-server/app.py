@@ -498,5 +498,114 @@ def beat_delete(bid):
     return _cors(jsonify(ok=True))
 
 
+# ---- BandLab preset import (AI reads a screenshot) ---------------------------------
+# Session sends 1-4 screenshots of a BandLab effect chain plus the list of Session's own effects.
+# Claude reads every BandLab effect and knob and maps them onto Session's effects. The Anthropic key
+# lives only in this server's secrets (ANTHROPIC_API_KEY), never in the app.
+ANTHROPIC_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-5")
+AI_PER_USER_DAY = int(os.environ.get("AI_PER_USER_DAY", "25"))
+AI_GLOBAL_DAY = int(os.environ.get("AI_GLOBAL_DAY", "400"))     # cost guard for the whole server
+IMG_MAX = 5 * 1024 * 1024
+
+with _db() as _c:
+    _c.execute("CREATE TABLE IF NOT EXISTS ai_usage (user_id TEXT, day TEXT, n INTEGER, PRIMARY KEY (user_id, day))")
+
+BANDLAB_PROMPT = """You are helping a music app called Session copy a vocal/instrument effect preset from BandLab.
+
+The images are screenshots from BandLab (Studio / Mix Editor) showing an effect chain or one or more effect panels.
+
+STEP 1 - Read: list every BandLab effect you can see, in chain order (top to bottom / left to right), with every visible control label and its exact value as displayed (keep units). Note an effect that is switched off/bypassed. If a BandLab preset name is shown, record it. Never invent values you cannot see; if a knob shows no number, estimate its position as a percentage of its range and mark it "~".
+
+STEP 2 - Rebuild: map that chain onto Session's effects (catalog below: pluginId, params with id/min/max/unit). Use the closest Session effect for each BandLab effect, convert units and ranges carefully (dB stay dB, ms stay ms, % of a 0-1 range etc.), and keep the same order. One BandLab effect may need two Session effects or a parameter can be approximated; explain those in notes. Pitch correction / Auto-Pitch -> Session's Auto-Tune if present (key/scale/speed). Every param value must be a number inside that param's min..max (or a valid option). Leave out params you have no information for (Session keeps its defaults).
+
+Reply with ONE JSON object only, no markdown:
+{"name": "short preset name", "bandlab": [{"effect": "...", "bypassed": false, "settings": {"Label": "value"}}], "chain": [{"pluginId": "...", "bypass": false, "params": {"paramId": 0}, "from": "BandLab effect it copies"}], "notes": ["..."], "confidence": "high|medium|low"}
+
+If the images are not BandLab effect settings, reply {"error": "short reason"}.
+
+SESSION EFFECTS CATALOG:
+"""
+
+
+def _ai_take_quota(uid):
+    day = time.strftime("%Y-%m-%d", time.gmtime())
+    with _db_lock, _db() as c:
+        total = c.execute("SELECT COALESCE(SUM(n),0) FROM ai_usage WHERE day = ?", (day,)).fetchone()[0]
+        row = c.execute("SELECT n FROM ai_usage WHERE user_id = ? AND day = ?", (uid, day)).fetchone()
+        mine = row[0] if row else 0
+        if total >= AI_GLOBAL_DAY:
+            return "Preset import is busy today, try again tomorrow."
+        if mine >= AI_PER_USER_DAY and uid not in ADMIN_IDS:
+            return f"You've used today's {AI_PER_USER_DAY} preset imports. Try again tomorrow."
+        c.execute("INSERT INTO ai_usage (user_id, day, n) VALUES (?, ?, 1) ON CONFLICT(user_id, day) DO UPDATE SET n = n + 1", (uid, day))
+    return None
+
+
+def _img_type(b):
+    if b[:3] == b"\xff\xd8\xff":
+        return "image/jpeg"
+    if b[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png"
+    if b[:4] == b"RIFF" and b[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
+@app.route("/v1/presets/bandlab", methods=["POST", "OPTIONS"])
+def bandlab_import():
+    if request.method == "OPTIONS":
+        return _cors(make_response("", 204))
+    user = verify_discord_user(request.headers.get("Authorization"))
+    if not user:
+        return _err("sign in with Discord first", 401)
+    if not ANTHROPIC_KEY:
+        return _err("preset import isn't switched on on the server yet (ANTHROPIC_API_KEY missing)", 503)
+    files = request.files.getlist("image")[:4]
+    if not files:
+        return _err("add a screenshot", 400)
+    content = []
+    for f in files:
+        b = f.read(IMG_MAX + 1)
+        if len(b) > IMG_MAX:
+            return _err("each screenshot must be under 5 MB", 400)
+        mt = _img_type(b)
+        if not mt:
+            return _err("screenshots must be PNG, JPG or WebP", 400)
+        import base64
+        content.append({"type": "image", "source": {"type": "base64", "media_type": mt, "data": base64.b64encode(b).decode()}})
+    catalog = (request.form.get("catalog") or "")[:60000]
+    try:
+        json.loads(catalog)
+    except ValueError:
+        return _err("bad effect catalog", 400)
+    hint = _clean(request.form.get("hint"), 300)
+    text = BANDLAB_PROMPT + catalog + ("\n\nThe user adds: " + hint if hint else "")
+    content.append({"type": "text", "text": text})
+    q = _ai_take_quota(user["id"])
+    if q:
+        return _err(q, 429)
+    try:
+        r = requests.post("https://api.anthropic.com/v1/messages", timeout=90, headers={
+            "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json",
+        }, json={"model": ANTHROPIC_MODEL, "max_tokens": 4000, "messages": [{"role": "user", "content": content}]})
+    except requests.RequestException:
+        return _err("couldn't reach the AI service, try again", 502)
+    if r.status_code != 200:
+        app.logger.warning("anthropic %s %s", r.status_code, r.text[:300])
+        return _err("the AI service had a problem (%d), try again" % r.status_code, 502)
+    out = "".join(x.get("text", "") for x in r.json().get("content", []) if x.get("type") == "text").strip()
+    m = re.search(r"\{[\s\S]*\}", out)
+    try:
+        res = json.loads(m.group(0)) if m else None
+    except ValueError:
+        res = None
+    if not isinstance(res, dict):
+        return _err("couldn't read that screenshot, try a clearer one", 422)
+    if res.get("error"):
+        return _err(str(res["error"])[:200], 422)
+    return _cors(jsonify(result=res))
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "8080")))

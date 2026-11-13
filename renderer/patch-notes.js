@@ -7,6 +7,13 @@
  * dropped), and empties PATCH-NOTES-NEXT.txt for the next round. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.25.24',
+    date: '2026-11-13',
+    changes: [
+      'New: Copy a BandLab preset. Screenshot the effects in BandLab, drop or paste them into Session (FX & Plugins, BandLab preset, or Chain presets on any track), and Session reads every effect and setting and rebuilds the chain with its own effects. Apply it to a track or save it as a chain preset.',
+    ],
+  },
+  {
     version: '0.25.23',
     date: '2026-11-13',
     changes: [

@@ -97,3 +97,24 @@ fly secrets set ADMIN_DISCORD_IDS=123456789012345678 --app session-collab-auth
 
 Limits built in: MP3 only (≤20 MB), 60 beats per producer, 15 uploads per day,
 a beat is hidden automatically after 3 reports.
+
+## BandLab preset import (added in 0.25.24)
+
+Session's "Copy a BandLab preset" reads screenshots with Claude (AI) on this server.
+It needs an Anthropic API key, which lives only here as a secret (never in the app):
+
+1. Get a key at https://console.anthropic.com → API Keys (add a few dollars of credit under Billing).
+2. Set it and redeploy:
+
+```bash
+fly secrets set ANTHROPIC_API_KEY=sk-ant-... --app session-collab-auth
+```
+
+(`fly secrets set` restarts the server by itself; no separate deploy needed after the first `fly deploy`.)
+
+Cost guards (optional, these are the defaults): each user gets 25 reads a day, the whole server 400 a day.
+Each read costs roughly 2–4 cents.
+
+```bash
+fly secrets set AI_PER_USER_DAY=25 AI_GLOBAL_DAY=400 --app session-collab-auth
+```
