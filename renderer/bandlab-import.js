@@ -44,13 +44,27 @@
     return { fx, dropped };
   };
 
+  /** Turn every effect up or down together: intensity knobs move toward "off", dB boosts/cuts toward 0 dB. */
+  const INTENSE = /mix|wet|amount|strength|drive|depth|sat|squeeze|feedback|emph|intens|wobble|harm|gain|makeup|peak|sub|noise|res$/i;
+  BI.scale = (fx, k) => fx.map((f) => {
+    const d = S.plugins.get(f.pluginId); if (!d || k === 1) return f;
+    const params = Object.assign({}, f.params);
+    for (const p of d.params || []) {
+      if (!(p.id in params) || p.type === 'select' || p.min == null || /^_/.test(p.id)) continue;
+      const v = params[p.id];
+      if (p.unit === 'dB' && p.min < 0 && p.max > 0) params[p.id] = Math.min(p.max, Math.max(p.min, v * k));           // boosts & cuts toward 0
+      else if (INTENSE.test(p.id) && !/freq|hz|time|rate|thresh|attack|release|q$/i.test(p.id)) params[p.id] = Math.min(p.max, Math.max(p.min, p.min + (v - p.min) * k));
+    }
+    return Object.assign({}, f, { params });
+  });
+
   // Screenshots are shrunk to max 1600 px JPEG: plenty to read knobs, much faster to upload.
   async function shrink(file) {
     const bmp = await createImageBitmap(file);
-    const k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+    const k = Math.min(1, 2200 / Math.max(bmp.width, bmp.height));   // sharp enough to read small knob numbers
     const c = document.createElement('canvas'); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
     c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
-    return new Promise((r) => c.toBlob(r, 'image/jpeg', 0.9));
+    return new Promise((r) => c.toBlob(r, 'image/jpeg', 0.93));
   }
 
   BI.open = (track) => {
@@ -68,7 +82,7 @@
         <button type="button" class="btn bli-save" hidden>Save as chain preset</button><button type="button" class="btn primary bli-apply" hidden>Apply to track</button><button type="button" class="btn primary bli-go">Read preset</button></div>`;
     const $ = (s) => dlg.querySelector(s);
     const files = [];
-    let result = null;
+    let result = null, kStrength = 0.9;   // a touch under 100%: imports tend to come out a little hotter than BandLab
     const drawThumbs = () => {
       const t = $('.bli-thumbs'); t.textContent = '';
       $('.bli-empty').style.display = files.length ? 'none' : '';
@@ -106,7 +120,10 @@
       $('.bli-out').innerHTML = `<div class="bli-cols"><div><div class="set-sec-t">BandLab (read from your screenshot)</div><ol>${bl || '<li>Nothing read</li>'}</ol></div>
         <div><div class="set-sec-t">Session chain</div><ol>${ss || '<li>No matching effects</li>'}</ol></div></div>
         ${notes.length ? '<ul class="hint bli-notes">' + notes.map((n) => '<li>' + esc(n) + '</li>').join('') + '</ul>' : ''}
-        <div class="hint">Read confidence: <b>${esc(r.confidence || 'medium')}</b>. Check the numbers against BandLab before you rely on it.</div>`;
+        <div class="hint">Read confidence: <b>${esc(r.confidence || 'medium')}</b>. Check the numbers against BandLab before you rely on it.</div>
+        <div class="param" style="margin-top:8px"><label>Strength</label><input type="range" class="bli-k" min="40" max="120" step="1" value="${Math.round(kStrength * 100)}"><span class="val bli-kv">${Math.round(kStrength * 100)}%</span></div>
+        <p class="hint" style="margin:0">Sounds stronger than in BandLab? Lower this: it turns every effect's amount, drive, mix and EQ boosts down together.</p>`;
+      const ks = $('.bli-k'); ks.oninput = () => { kStrength = +ks.value / 100; $('.bli-kv').textContent = ks.value + '%'; };
       const has = c.fx.length > 0;
       $('.bli-apply').hidden = !has; $('.bli-save').hidden = !has;
       const t = target(); $('.bli-apply').textContent = 'Apply to ' + (t ? '“' + (t.name || 'track') + '”' : 'track');
@@ -135,7 +152,7 @@
     };
     $('.bli-apply').onclick = () => {
       const t = target(); if (!t || !result) return;
-      const r = S.chainPresets.apply(t, { fx: result.clean.fx });
+      const r = S.chainPresets.apply(t, { fx: BI.scale(result.clean.fx, kStrength) });
       S.toast('BandLab preset applied to “' + (t.name || 'track') + '” (' + r.applied + ' effects). Undo with Ctrl+Z.');
       dlg.close();
     };
@@ -143,7 +160,7 @@
       if (!result) return;
       const name = ((await S.askText('Name this preset', { value: (result.raw.name || 'BandLab preset').slice(0, 40) })) || '').trim();
       if (!name) return;
-      S.chainPresets.save({ fx: result.clean.fx }, name);
+      S.chainPresets.save({ fx: BI.scale(result.clean.fx, kStrength) }, name);
       S.toast('Saved “' + name + '” — find it under Chain presets on any track.');
     };
     $('.bli-cancel').onclick = () => dlg.close();

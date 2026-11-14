@@ -317,6 +317,62 @@
     return hit ? 'grab' : 'default';
   }
 
+  /* ---------- drag a track header up/down to reorder (like BandLab) ----------
+   * Grab the ⠿ grip (or, with a mouse, any empty part of the header) and drop it between two tracks. */
+  function startTrackDrag(e, row, track) {
+    if (e.button !== 0) return;
+    const onGrip = !!e.target.closest('.trk-grip');
+    if (!onGrip && (e.pointerType !== 'mouse' || e.target.closest('input,button,select,.fx-chips,.fx-chip,.fx-add,.fx-vibe,a'))) return;
+    const rows = [...headers.querySelectorAll('.trk')];
+    const from = rows.indexOf(row);
+    if (from < 0) return;
+    const y0 = e.clientY;
+    let dragging = false, to = from, line = null;
+    const target = (y) => {
+      for (let i = 0; i < rows.length; i++) { const r = rows[i].getBoundingClientRect(); if (y < r.top + r.height / 2) return i; }
+      return rows.length;
+    };
+    const move = (ev) => {
+      if (!dragging) {
+        if (Math.abs(ev.clientY - y0) < 6) return;
+        dragging = true;
+        row.classList.add('trk-dragging');
+        document.body.classList.add('trk-drag-on');
+        line = document.createElement('div'); line.className = 'trk-dropline'; headers.appendChild(line);
+      }
+      ev.preventDefault();
+      to = target(ev.clientY);
+      const hb = headers.getBoundingClientRect();
+      const ref = to < rows.length ? rows[to].getBoundingClientRect().top : rows[rows.length - 1].getBoundingClientRect().bottom;
+      line.style.top = ref - hb.top - 1 + 'px';
+      // keep the list scrolling when you drag to the top/bottom edge
+      const sc = headers.closest('#timeline') || headers;
+      const sb = sc.getBoundingClientRect();
+      if (ev.clientY < sb.top + 30) sc.scrollTop -= 12; else if (ev.clientY > sb.bottom - 30) sc.scrollTop += 12;
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move, true);
+      window.removeEventListener('pointerup', up, true);
+      window.removeEventListener('pointercancel', up, true);
+      document.body.classList.remove('trk-drag-on');
+      row.classList.remove('trk-dragging');
+      if (line) line.remove();
+      if (!dragging) return;
+      const dest = to > from ? to - 1 : to;
+      if (dest === from) return;
+      const p = S.project;
+      S.history.push();
+      p.tracks.splice(from, 1);
+      p.tracks.splice(dest, 0, track);
+      S.refresh.structure();
+      S.toast('Moved “' + (track.name || 'track') + '”.');
+    };
+    if (onGrip) e.preventDefault();
+    window.addEventListener('pointermove', move, true);
+    window.addEventListener('pointerup', up, true);
+    window.addEventListener('pointercancel', up, true);
+  }
+
   /* ---------- track headers ---------- */
   TL.renderHeaders = () => {
     const p = S.project;
@@ -351,8 +407,14 @@
         t.name = name.value || 'Track';
         S.mixer.render();
       };
-      top.append(dot, name);
+      const grip = document.createElement('span');
+      grip.className = 'trk-grip';
+      grip.title = 'Drag to move this track up or down';
+      grip.textContent = '⠿';
+      top.append(grip, dot, name);
       row.appendChild(top);
+      row.dataset.idx = p.tracks.indexOf(t);
+      row.addEventListener('pointerdown', (e) => startTrackDrag(e, row, t));
 
       const btns = document.createElement('div');
       btns.className = 'btns';

@@ -53,37 +53,50 @@
         this.tauMin = 32;              // ~1378 Hz
         this.tauMax = 500;             // ~88 Hz
         this.yin = new Float32Array(this.tauMax + 2);
+        this.dState = 0; this.dTau = 1; this.dRun = 0; this.dFound = -1; // resumable detector state
+        this.MASK = this.RING - 1;                                        // RING is a power of two
+        this.hann = new Float32Array(this.G + 1);                          // grain window, looked up instead of 2 cos() per sample
+        for (let i = 0; i <= this.G; i++) this.hann[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / this.G);
       }
-      detect() {
-        // half-rate copy (pair average = gentle low-pass): the pitch search costs ~4x less CPU,
-        // which is what made recording with Auto-Tune on several tracks lag and glitch
+      /* Pitch detection (YIN on a half-rate copy), done in small chunks spread over the next few audio
+       * blocks instead of all at once. Doing the whole search inside one 2.7 ms audio block was a CPU spike
+       * that made playback stutter and the whole DAW feel choppy on slower computers. The search also stops
+       * as soon as it has found the pitch (YIN only needs the lags up to the dip), so voices cost about half. */
+      startDetect() {
         const src = this.det, x = this.dec, N = this.WIN >> 1;
         for (let i = 0; i < N; i++) x[i] = 0.5 * (src[2 * i] + src[2 * i + 1]);
-        const tauMax = Math.min(this.tauMax >> 1, (N >> 1) - 1), tauMin = this.tauMin >> 1, d = this.yin;
-        const prevF0 = this.f0;
-        // RMS gate: skip near-silence / breaths
         let rms = 0;
         for (let i = 0; i < N; i++) rms += x[i] * x[i];
         rms = Math.sqrt(rms / N);
-        if (rms < 0.004) { this.f0 = 0; return; }
-        // difference function
-        d[0] = 1;
-        let run = 0;
-        for (let tau = 1; tau <= tauMax; tau++) {
+        if (rms < 0.004) { this.f0 = 0; this.dState = 0; return true; }   // silence: done
+        this.dTau = 1; this.dRun = 0; this.dFound = -1; this.yin[0] = 1; this.dState = 1;
+        return false;
+      }
+      /** Work on the pitch search for at most "budget" lags. Returns true when the result is ready. */
+      stepDetect(budget) {
+        const x = this.dec, N = this.WIN >> 1, d = this.yin;
+        const tauMax = Math.min(this.tauMax >> 1, (N >> 1) - 1), tauMin = this.tauMin >> 1, L = N - tauMax, thr = 0.12;
+        let tau = this.dTau;
+        const stop = Math.min(tauMax, tau + budget - 1);
+        for (; tau <= stop; tau++) {
           let sum = 0;
-          for (let i = 0; i < N - tauMax; i++) { const dv = x[i] - x[i + tau]; sum += dv * dv; }
-          run += sum;
-          d[tau] = run > 0 ? sum * tau / run : 1; // cumulative mean normalized difference
+          for (let i = 0; i < L; i++) { const dv = x[i] - x[i + tau]; sum += dv * dv; }
+          this.dRun += sum;
+          d[tau] = this.dRun > 0 ? (sum * tau) / this.dRun : 1;
+          // first dip below the threshold: keep going while it still falls, then we have the answer
+          if (this.dFound < 0 && tau >= tauMin && d[tau] < thr) this.dFound = tau;
+          if (this.dFound >= 0 && tau > this.dFound && d[tau] >= d[tau - 1]) { this.dTau = tau + 1; this.finishDetect(tau - 1, tauMin, tauMax); return true; }
         }
-        // first dip below threshold, else global min
-        let tau = -1;
-        const thr = 0.12;
-        for (let t = tauMin; t <= tauMax; t++) {
-          if (d[t] < thr) { while (t + 1 <= tauMax && d[t + 1] < d[t]) t++; tau = t; break; }
-        }
+        this.dTau = tau;
+        if (tau > tauMax) { this.finishDetect(this.dFound >= 0 ? tauMax : -1, tauMin, tauMax); return true; }
+        return false;
+      }
+      finishDetect(tau, tauMin, tauMax) {
+        const d = this.yin, prevF0 = this.f0;
+        this.dState = 0;
         if (tau < 0) { let best = tauMin; for (let t = tauMin; t <= tauMax; t++) if (d[t] < d[best]) best = t; if (d[best] > 0.5) { this.f0 = 0; return; } tau = best; }
-        // parabolic interpolation around the dip
-        const a = d[tau - 1] || d[tau], b = d[tau], c = d[tau + 1] || d[tau];
+        // the computed range ends at tau+1 when we stopped early
+        const a = d[tau - 1] || d[tau], b = d[tau], c = tau + 1 < this.dTau ? d[tau + 1] || d[tau] : d[tau]; // only lags we computed
         const denom = a + c - 2 * b;
         let shift = denom !== 0 ? 0.5 * (a - c) / denom : 0;
         if (!(shift > -1 && shift < 1)) shift = 0; // never let interpolation run away (NaN/Infinity guard)
@@ -95,6 +108,17 @@
           else if (r > 0.47 && r < 0.53) f *= 2;
         }
         this.f0 = isFinite(f) && f > 40 && f < 2000 ? f : 0;
+      }
+      /** Turn the latest detection into a new target ratio (runs once per finished detection). */
+      applyDetection(keyIdx, scaleIdx, strength) {
+        const ratio = this.snap(keyIdx, scaleIdx);
+        // apply strength in the cents domain, so 50% = halfway corrected
+        if (this.f0) { this.pTarget = Math.pow(ratio, strength); this.lastRatio = this.pTarget; this.holdN = Math.round(this.sr * 0.08); }
+        // short unvoiced gaps (consonants, breaths) keep the current correction instead of snapping
+        // back to "no shift" and then re-correcting — that back-and-forth is the warble at word edges
+        else if (this.holdN > 0) { this.holdN -= this.HOP; this.pTarget = this.lastRatio; }
+        else this.pTarget = 1;
+        if (!isFinite(this.pTarget)) this.pTarget = 1;
       }
       snap(keyIdx, scaleIdx) {
         const f0 = this.f0;
@@ -133,6 +157,8 @@
         const aRe = Math.exp(-1 / (sr * glideMs / 1000));
         const inL = inp[0], inR = inp.length > 1 ? inp[1] : inp[0];
         const outL = out[0], outR = out.length > 1 ? out[1] : null;
+        // a slice of the pending pitch search (≈ 70 lags per block keeps every block light)
+        if (this.dState === 1 && this.stepDetect(70)) this.applyDetection(keyIdx, scaleIdx, strength);
         for (let i = 0; i < n; i++) {
           const dryL = inL[i] * inG, dryR = inR[i] * inG;
           // write into the delay rings
@@ -146,15 +172,8 @@
           }
           if (++this.dpos >= this.HOP) {
             this.dpos = 0;
-            this.detect();
-            const ratio = this.snap(keyIdx, scaleIdx);
-            // apply strength in the cents domain, so 50% = halfway corrected
-            if (this.f0) { this.pTarget = Math.pow(ratio, strength); this.lastRatio = this.pTarget; this.holdN = Math.round(sr * 0.08); }
-            // short unvoiced gaps (consonants, breaths) keep the current correction instead of snapping
-            // back to "no shift" and then re-correcting — that back-and-forth is the warble at word edges
-            else if (this.holdN > 0) { this.holdN -= this.HOP; this.pTarget = this.lastRatio; }
-            else this.pTarget = 1;
-            if (!isFinite(this.pTarget)) this.pTarget = 1;
+            // start a new search (if the last one is still running, let it finish first)
+            if (this.dState === 0 && this.startDetect()) this.applyDetection(keyIdx, scaleIdx, strength);
           }
           // glide the ratio toward the target (retune speed)
           this.p = aRe * this.p + (1 - aRe) * this.pTarget;
@@ -163,8 +182,7 @@
           this.delay = this.delay + (1 - this.p);
           this.delay = ((this.delay % G) + G) % G;
           const d2 = (this.delay + G / 2) % G;
-          const win1 = 0.5 - 0.5 * Math.cos((2 * Math.PI * this.delay) / G);
-          const win2 = 0.5 - 0.5 * Math.cos((2 * Math.PI * d2) / G);
+          const win1 = this.hann[this.delay | 0], win2 = this.hann[d2 | 0];
           const wetL = this.tap(this.ringL, this.w, this.delay, win1) + this.tap(this.ringL, this.w, d2, win2);
           const wetR = outR ? this.tap(this.ringR, this.w, this.delay, win1) + this.tap(this.ringR, this.w, d2, win2) : 0;
           // When almost no shift is needed (ratio ≈ 1) the delay stops moving and the two grain
@@ -178,7 +196,7 @@
           // soft-clip the output so a hot vocal + gain can't hard-clip into crackle
           outL[i] = this.clip((dryL * (1 - w) + wetL * w) * outG);
           if (outR) outR[i] = this.clip((dryR * (1 - w) + wetR * w) * outG);
-          this.w = (this.w + 1) % RING;
+          this.w = (this.w + 1) & this.MASK;
         }
         // tell the UI the current note, a few times a second
         if ((this.rep += n) > sr / 24) {
@@ -196,12 +214,9 @@
       }
       // read the ring at (write - delay) with linear interpolation, scaled by a window
       tap(ring, w, delay, win) {
-        const RING = this.RING;
-        const pos = w - delay;
-        const p0 = ((Math.floor(pos) % RING) + RING) % RING;
-        const p1 = (p0 + 1) % RING;
-        const frac = pos - Math.floor(pos);
-        return (ring[p0] * (1 - frac) + ring[p1] * frac) * win;
+        const pos = w - delay, i = Math.floor(pos), frac = pos - i, m = this.MASK;
+        const a = ring[i & m];
+        return (a + (ring[(i + 1) & m] - a) * frac) * win;
       }
     }
     registerProcessor('ss-autotune', SsAutotune);

@@ -6,7 +6,23 @@
   const gainToDb = (g) => (g > 1e-6 ? 20 * Math.log10(g) : -120);
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const isOffline = (ctx) => typeof OfflineAudioContext !== 'undefined' && ctx instanceof OfflineAudioContext;
-  const smooth = (param, v, ctx, tc = 0.015) => (isOffline(ctx) ? (param.value = v) : param.setTargetAtTime(v, ctx.currentTime, tc));
+  const smooth = (param, v, ctx, tc = 0.015) => { param.__t = v; return isOffline(ctx) ? (param.value = v) : param.setTargetAtTime(v, ctx.currentTime, tc); };
+  /* The EQ display asks each filter for its response. A live filter only reports its *current* value, which
+   * lags behind (or freezes while audio isn't running), so the curve got stuck after a change. Instead we
+   * mirror the target settings onto a silent copy of the filter and ask that one. */
+  const shadowCtxs = new Map();
+  function targetResponse(f, freqs, mag, ph) {
+    const sr = f.context.sampleRate;
+    let c = shadowCtxs.get(sr);
+    if (!c) { c = new OfflineAudioContext(1, 128, sr); shadowCtxs.set(sr, c); }
+    const s = f.__shadow || (f.__shadow = c.createBiquadFilter());
+    s.type = f.type;
+    const v = (p) => (p.__t != null ? p.__t : p.value);
+    s.frequency.value = v(f.frequency); s.Q.value = v(f.Q); s.gain.value = v(f.gain); s.detune.value = v(f.detune);
+    s.getFrequencyResponse(freqs, mag, ph);
+  }
+  const setT = (param, v, t, tc) => { param.__t = v; param.setTargetAtTime(v, t, tc); };
+
   const songBpm = () => (Studio.project && Studio.project.bpm) || 120;
   const songBeatsPerBar = () => (Studio.project && Studio.project.beatsPerBar) || 4;
 
@@ -301,7 +317,7 @@
           const mag = new Float32Array(freqs.length);
           const ph = new Float32Array(freqs.length);
           for (const f of [...Object.values(nodes)]) {
-            f.getFrequencyResponse(freqs, mag, ph);
+            targetResponse(f, freqs, mag, ph);
             for (let i = 0; i < freqs.length; i++) total[i] += gainToDb(mag[i]);
           }
           return total;

@@ -541,6 +541,15 @@ STEP 1 - Read: list every BandLab effect you can see, in chain order (top to bot
 
 STEP 2 - Rebuild: map that chain onto Session's effects (catalog below: pluginId, params with id/min/max/unit). Use the closest Session effect for each BandLab effect, convert units and ranges carefully (dB stay dB, ms stay ms, % of a 0-1 range etc.), and keep the same order. One BandLab effect may need two Session effects or a parameter can be approximated; explain those in notes. Pitch correction / Auto-Pitch -> Session's Auto-Tune if present (key/scale/speed). Every param value must be a number inside that param's min..max (or a valid option). Leave out params you have no information for (Session keeps its defaults).
 
+CALIBRATION — Session must never sound stronger than the BandLab original:
+- Values BandLab shows with units (dB, Hz, kHz, ms, s, ratio like 4:1, semitones) are copied exactly, converted only for units.
+- BandLab's unitless 0-100 % knobs are gentle. For intensity controls (drive, saturation, amount, squeeze, depth, intensity, feedback, width, wet/mix of reverb, delay, chorus, distortion) use about 70 % of the straight proportional value in Session's range, and never more than the proportional value.
+- EQ: copy each band's gain and frequency; if a gain has no number, estimate from the dot/slider position conservatively (round toward 0 dB).
+- Compressors: if no threshold is shown, choose one that gives moderate gain reduction (about 3-6 dB) and keep make-up gain at or below what BandLab shows.
+- Reverb / delay: BandLab "mix" or "wet" 100 % means fully wet only if the effect is clearly an insert meant to be fully wet; otherwise treat it as about 35 % in Session.
+- Auto-Pitch / pitch correction: copy the key and scale exactly; BandLab "response" fast ≈ retune 5-20 ms, medium ≈ 40-70 ms, slow ≈ 100-200 ms.
+- If you are unsure about a reading, pick the milder value and say so in notes.
+
 Reply with ONE JSON object only, no markdown:
 {"name": "short preset name", "bandlab": [{"effect": "...", "bypassed": false, "settings": {"Label": "value"}}], "chain": [{"pluginId": "...", "bypass": false, "params": {"paramId": 0}, "from": "BandLab effect it copies"}], "notes": ["..."], "confidence": "high|medium|low"}
 

@@ -1041,3 +1041,47 @@ html.accent-light .vt.on, html.accent-light .btn.primary, html.accent-light .seg
 html.accent-light .tool-thumb ~ .tool.active { color: var(--on-accent); }
 #view-tabs, #view-tabs * { -webkit-user-select: none; user-select: none; }
 html.accent-light #beatlab .bl-tab.on, html.accent-light #beatlab .bl-seg button.on, html.accent-light #beatlab .bl-tog.on, html.accent-light .set-tab.on { color: var(--on-accent); }
+
+/* drag tracks up/down in the playlist */
+.trk-grip { flex: none; width: 12px; margin-left: -10px; color: var(--faint); cursor: grab; font-size: 13px; line-height: 1; user-select: none; touch-action: none; opacity: 0.55; transition: opacity 0.15s; }
+.trk:hover .trk-grip { opacity: 1; }
+.trk-dragging { opacity: 0.45; }
+.trk-dropline { position: absolute; left: 6px; right: 6px; height: 3px; border-radius: 3px; background: var(--accent); box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.8); pointer-events: none; z-index: 5; }
+body.trk-drag-on, body.trk-drag-on * { cursor: grabbing !important; user-select: none; }
+
+/* ---------- Glass style: menus, dialogs, settings, Vocal Vibe and plugin windows ----------
+   Real frosted glass: see-through, blurred, with a wash of your accent colour and a bright rim. */
+html:not(.ui-flat) {
+  --glass-bg: rgba(16, 17, 24, 0.66);
+  --glass-wash: linear-gradient(155deg, rgba(var(--accent-rgb), 0.2) 0%, rgba(var(--accent-rgb), 0.06) 38%, rgba(var(--accent-rgb), 0) 70%);
+  --glass-rim: rgba(255, 255, 255, 0.13);
+  --glass-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+html.bg-live:not(.ui-flat) { --glass-bg: rgba(16, 17, 24, 0.84); } /* no blur behind moving backgrounds, so a bit more solid */
+html:not(.ui-flat) .ctxmenu, html:not(.ui-flat) .fx-picker, html:not(.ui-flat) dialog.modal, html:not(.ui-flat) .toast {
+  background: var(--glass-wash), var(--glass-bg) !important;
+  border: 1px solid var(--glass-rim) !important;
+  box-shadow: var(--glass-shadow) !important;
+  backdrop-filter: blur(26px) saturate(170%); -webkit-backdrop-filter: blur(26px) saturate(170%);
+}
+html:not(.ui-flat) .ctxmenu .item:hover, html:not(.ui-flat) .fp-item:hover, html:not(.ui-flat) .fp-item.active {
+  background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.55), rgba(var(--accent-rgb), 0.28)) !important; color: #fff;
+}
+html:not(.ui-flat) .ctxmenu .item:hover .hint, html:not(.ui-flat) .ctxmenu .item:hover small { color: rgba(255, 255, 255, 0.75); }
+html:not(.ui-flat) .ctxmenu .sep { background: rgba(255, 255, 255, 0.1); }
+html:not(.ui-flat) dialog.modal::backdrop { background: rgba(4, 4, 10, 0.42); backdrop-filter: blur(3px); }
+/* settings window: tinted header + see-through panels */
+html:not(.ui-flat) .set-tabs { background: rgba(0, 0, 0, 0.16); border-right-color: rgba(255, 255, 255, 0.08); }
+html:not(.ui-flat) .set-pane { background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)); border-color: rgba(255, 255, 255, 0.08); }
+html:not(.ui-flat) .set-tab.on { background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.45), rgba(var(--accent-rgb), 0.2)); }
+/* plugin windows */
+html:not(.ui-flat) .pw {
+  background:
+    radial-gradient(120% 60% at 50% -10%, color-mix(in srgb, var(--pc) 22%, transparent), transparent 60%),
+    var(--glass-wash), var(--glass-bg);
+  border-color: var(--glass-rim);
+  backdrop-filter: blur(28px) saturate(170%); -webkit-backdrop-filter: blur(28px) saturate(170%);
+}
+html:not(.ui-flat) .pw-sec { background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.02)); }
+/* Flat keeps the solid look but follows the accent too */
+html.ui-flat .ctxmenu, html.ui-flat .fx-picker, html.ui-flat dialog.modal { background: color-mix(in srgb, var(--accent) 7%, var(--f-1)) !important; }

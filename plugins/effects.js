@@ -1,5 +1,20 @@
 /* Built-in effects: Delay, Reverb, Distortion, Filter, Compressor. */
 (function () {
+  /* The EQ display asks each filter for its response. A live filter only reports its *current* value, which
+   * lags behind (or freezes while audio isn't running), so the curve got stuck after a change. Instead we
+   * mirror the target settings onto a silent copy of the filter and ask that one. */
+  const shadowCtxs = new Map();
+  function targetResponse(f, freqs, mag, ph) {
+    const sr = f.context.sampleRate;
+    let c = shadowCtxs.get(sr);
+    if (!c) { c = new OfflineAudioContext(1, 128, sr); shadowCtxs.set(sr, c); }
+    const s = f.__shadow || (f.__shadow = c.createBiquadFilter());
+    s.type = f.type;
+    const v = (p) => (p.__t != null ? p.__t : p.value);
+    s.frequency.value = v(f.frequency); s.Q.value = v(f.Q); s.gain.value = v(f.gain); s.detune.value = v(f.detune);
+    s.getFrequencyResponse(freqs, mag, ph);
+  }
+  const setT = (param, v, t, tc) => { param.__t = v; param.setTargetAtTime(v, t, tc); };
   /** dry/wet helper: returns { input, output, dry, wet, setMix } */
   function dryWet(ctx) {
     const input = ctx.createGain();
@@ -206,14 +221,14 @@
         output: f,
         getResponse(freqs) {
           const m = new Float32Array(freqs.length);
-          f.getFrequencyResponse(freqs, m, new Float32Array(freqs.length));
+          targetResponse(f, freqs, m, new Float32Array(freqs.length));
           return m.map((v) => 20 * Math.log10(Math.max(v, 1e-6)));
         },
         setParam(id, v) {
           const t = ctx.currentTime;
           if (id === 'type') f.type = v;
-          else if (id === 'cutoff') f.frequency.setTargetAtTime(v, t, 0.01);
-          else if (id === 'resonance') f.Q.setTargetAtTime(v, t, 0.01);
+          else if (id === 'cutoff') setT(f.frequency, v, t, 0.01);
+          else if (id === 'resonance') setT(f.Q, v, t, 0.01);
         },
         destroy() {},
       };
@@ -312,17 +327,17 @@
           const m = new Float32Array(freqs.length);
           const ph = new Float32Array(freqs.length);
           for (const f of [lo, mid, hi]) {
-            f.getFrequencyResponse(freqs, m, ph);
+            targetResponse(f, freqs, m, ph);
             for (let i = 0; i < freqs.length; i++) total[i] += 20 * Math.log10(Math.max(m[i], 1e-6));
           }
           return total;
         },
         setParam(id, v) {
           const t = ctx.currentTime;
-          if (id === 'low') lo.gain.setTargetAtTime(v, t, 0.01);
-          else if (id === 'mid') mid.gain.setTargetAtTime(v, t, 0.01);
-          else if (id === 'midFreq') mid.frequency.setTargetAtTime(v, t, 0.01);
-          else if (id === 'high') hi.gain.setTargetAtTime(v, t, 0.01);
+          if (id === 'low') setT(lo.gain, v, t, 0.01);
+          else if (id === 'mid') setT(mid.gain, v, t, 0.01);
+          else if (id === 'midFreq') setT(mid.frequency, v, t, 0.01);
+          else if (id === 'high') setT(hi.gain, v, t, 0.01);
         },
         destroy() {},
       };

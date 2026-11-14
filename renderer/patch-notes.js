@@ -7,6 +7,17 @@
  * dropped), and empties PATCH-NOTES-NEXT.txt for the next round. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.25.28',
+    date: '2026-11-14',
+    changes: [
+      'Fixed Auto-Tune making playback choppy and the whole app laggy: its pitch search used to run all at once inside one tiny audio block (a CPU spike that made the sound stutter on slower computers). It is now spread over several blocks and stops as soon as it finds the pitch, so it uses about 40% less CPU and never spikes. Tuning sounds the same.',
+      'Fixed the EQ curve getting stuck in EQ, 3-Band EQ and Filter: after you changed a band, the dot moved but the line did not. The curve now always follows your settings.',
+      'Drag tracks up and down in the playlist to reorder them, like in BandLab: grab the grip next to the track name (or any empty part of the header with a mouse). Undo works.',
+      'Glass style: right-click menus, the effect picker, Settings, Vocal Vibe, all dialogs and plugin windows are now real frosted glass tinted with your accent colour. Menu highlights use your accent in both Glass and Flat.',
+      'BandLab preset import: sharper screenshots are sent so small knob numbers read better, Session now matches BandLab\'s gentler knob strength, and there is a new Strength slider to turn the whole imported chain up or down before you apply it.',
+    ],
+  },
+  {
     version: '0.25.27',
     date: '2026-11-14',
     changes: [
