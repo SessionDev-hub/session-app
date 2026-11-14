@@ -683,10 +683,12 @@
       // waveform live while you record (cheap: a few hundred numbers per second).
       const PEAK_BLOCK = 256;
       const rec = { node, silent, chunks, trackId, startPos: fromPos, firstFrame: null, lat: this.latencySeconds() + this.totalLatency(), peaks: [], peakSec: PEAK_BLOCK / ctx.sampleRate, _pk: 0, _pn: 0 };
+      const taps = S.recTaps ? [...S.recTaps] : [];
       node.port.onmessage = (e) => {
         if (rec.firstFrame === null) rec.firstFrame = e.data.f;
         const d = e.data.d;
         chunks.push(d);
+        for (const t of taps) { try { t.chunk && t.chunk(d, ctx.sampleRate); } catch (err) {} } // e.g. live collab streams the take as it's recorded
         let pk = rec._pk, pn = rec._pn;
         for (let i = 0; i < d.length; i++) {
           const v = d[i] < 0 ? -d[i] : d[i];
@@ -697,6 +699,7 @@
       };
       this.mic.input.connect(node);
       this.rec = rec;
+      for (const t of taps) { try { t.start && t.start(rec, ctx.sampleRate); } catch (err) {} }
       this.play(fromPos); // overdub against existing clips
     }
 
@@ -709,6 +712,7 @@
         this.mic.input.disconnect(r.node);
       } catch (e) {}
       r.node.port.onmessage = null;
+      if (S.recTaps) for (const t of S.recTaps) { try { t.stop && t.stop(r); } catch (err) {} }
       // stop the capture processor for good — before, every finished take kept running and messaging
       // the app ~375 times a second forever, so after a few takes recording lagged and then broke
       try { r.node.port.postMessage({ __psKill: 1 }); } catch (e) {}

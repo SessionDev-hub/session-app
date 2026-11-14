@@ -7,6 +7,16 @@
  * dropped), and empties PATCH-NOTES-NEXT.txt for the next round. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.25.29',
+    date: '2026-11-14',
+    changes: [
+      'Live sessions: when someone records, everyone else sees it instantly — a red box with their name and the waveform grows on their track as they sing.',
+      'Live sessions: the moment a take stops it\'s already playable for everyone (no waiting for an upload); the full-quality file swaps in quietly a few seconds later.',
+      'Live sessions: edits like volume, pan and effect knobs now show up for others in about a tenth of a second without any stutter or audio dropout.',
+      'Live sessions: big projects sync reliably, play/stop stays in time across people, and someone else\'s edits no longer interrupt your recording.',
+    ],
+  },
+  {
     version: '0.25.28',
     date: '2026-11-14',
     changes: [

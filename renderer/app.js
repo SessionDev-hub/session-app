@@ -187,6 +187,7 @@
     const silent = takePeak(res.buffer) < SILENCE_PEAK;
     S.history.push(); // make the take (and any replaced audio) one undo step
     const id = S.addAsset('Take ' + ++takeCount, res.buffer);
+    try { S.emit('take-added', { assetId: id, trackId: res.trackId, name: S.project.assets[id].name, duration: res.buffer.duration }); } catch (e) {}
     const clip = S.addClip(idx, id, res.startPos + res.startShift, { offset: res.compensation, dur: res.buffer.duration - res.compensation });
     // Retake: a new take over existing audio replaces it, unless Layer mode is on.
     if (S.recordMode !== 'layer' && !silent) clearSpan(S.project.tracks[idx], clip.start, clip.start + clip.dur, clip.id);

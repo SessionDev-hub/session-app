@@ -74,7 +74,7 @@
       connected = true; refreshMembers();
       startStateSync();
       // ask the host to sync the newcomer to the current transport + project state
-      if (!host) { try { channel.trigger('client-hello', { at: Date.now() }); } catch (e) {} }
+      if (!host) send('client-hello', { at: Date.now() }, 0);
       S.toast && S.toast(host ? 'Live session started — invite sent.' : 'Joined the live session.');
       emit();
     });
@@ -94,12 +94,74 @@
     // control events
     channel.bind('client-transport', (d) => applyTransport(d));
     channel.bind('client-state', (d) => applyState(d));
+    channel.bind('client-state-z', (d) => receiveBig(d, applyState));
+    channel.bind('client-rec', (d) => onRemoteRec(d));
     channel.bind('client-asset', (d) => receiveAsset(d));
     channel.bind('client-hello', () => {
       // bring a newcomer fully up to date: current edits, then transport
       diffSend(true);
       broadcastTransport(currentTransport());
+      // a newcomer gets every take's audio too (they'll download what they're missing)
+      sharedAssets.clear(); scanAssets();
     });
+  }
+
+  /* ---- outgoing messages ----
+   * The realtime service allows a limited number of small messages per second. Everything goes
+   * through one queue: urgent things (play/stop, a live take's audio) jump ahead, and an edit that
+   * is still waiting is simply replaced by the newer one, so we never fall behind. */
+  const MAX_PER_SEC = 9, MAX_BYTES = 9000;
+  let outQ = [], sentAt = [], pumpTimer = 0;
+  function send(event, data, prio, coalesceKey) {
+    if (!channel || !C.active()) return;
+    if (coalesceKey) outQ = outQ.filter((m) => m.key !== coalesceKey);
+    outQ.push({ event, data, prio: prio || 0, key: coalesceKey || null, t: performance.now() });
+    pump();
+  }
+  function pump() {
+    clearTimeout(pumpTimer); pumpTimer = 0;
+    const now = performance.now();
+    sentAt = sentAt.filter((t) => now - t < 1000);
+    outQ.sort((a, b) => a.prio - b.prio || a.t - b.t);
+    while (outQ.length && sentAt.length < MAX_PER_SEC) {
+      const m = outQ.shift();
+      try { channel && channel.trigger(m.event, m.data); } catch (e) { try { console.warn('[collab] send', m.event, e); } catch (_) {} }
+      sentAt.push(now);
+    }
+    if (outQ.length) pumpTimer = setTimeout(pump, Math.max(10, 1000 - (now - sentAt[0]) + 5));
+  }
+  const b64 = (u8) => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); };
+  const unb64 = (str) => Uint8Array.from(atob(str), (c) => c.charCodeAt(0));
+  async function pack(obj) { // JSON → gzip → base64 (projects get big; this keeps them ~6-10x smaller)
+    const js = new TextEncoder().encode(JSON.stringify(obj));
+    if (typeof CompressionStream === 'undefined') return { raw: true, s: b64(js) };
+    const z = new Uint8Array(await new Response(new Blob([js]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
+    return { raw: false, s: b64(z) };
+  }
+  async function unpack(raw, str) {
+    const u8 = unb64(str);
+    if (raw) return JSON.parse(new TextDecoder().decode(u8));
+    const out = await new Response(new Blob([u8]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+    return JSON.parse(new TextDecoder().decode(out));
+  }
+  /** Send any size of state: small ones go as-is, big ones compressed and split into parts. */
+  let bigSeq = 0;
+  async function sendBig(event, obj, prio, coalesceKey) {
+    let js; try { js = JSON.stringify(obj); } catch (e) { return; }
+    if (js.length < MAX_BYTES - 200) return send(event, obj, prio, coalesceKey);
+    const pk = await pack(obj), id = (++bigSeq).toString(36) + Math.random().toString(36).slice(2, 6);
+    const CH = MAX_BYTES - 400, n = Math.ceil(pk.s.length / CH);
+    if (coalesceKey) outQ = outQ.filter((m) => !(m.key && m.key.startsWith(coalesceKey)));
+    for (let i = 0; i < n; i++) send(event + '-z', { id, i, n, raw: pk.raw, z: pk.s.slice(i * CH, (i + 1) * CH) }, prio, coalesceKey ? coalesceKey + ':' + id + ':' + i : null);
+  }
+  const bigIn = new Map();
+  function receiveBig(d, apply) {
+    if (!d || !d.id) return;
+    let e = bigIn.get(d.id);
+    if (!e) { e = { parts: new Array(d.n), got: 0, t: Date.now() }; bigIn.set(d.id, e); }
+    if (e.parts[d.i] == null) { e.parts[d.i] = d.z; e.got++; }
+    for (const [k, v] of bigIn) if (Date.now() - v.t > 20000) bigIn.delete(k); // forget half-received ones
+    if (e.got === d.n) { bigIn.delete(d.id); unpack(d.raw, e.parts.join('')).then(apply).catch((err) => console.warn('[collab] big message', err)); }
   }
 
   function refreshMembers() {
@@ -114,7 +176,7 @@
   }
   function broadcastTransport(d) {
     if (!C.active() || !channel) return;
-    try { channel.trigger('client-transport', d); } catch (e) {}
+    send('client-transport', d, 0, 'transport');
   }
   // called from app.js when the local user drives transport
   C.notifyTransport = (type, pos) => {
@@ -126,7 +188,9 @@
     applying = true;
     try {
       if (d.t === 'play') {
-        if (d.pos != null) S.playhead = d.pos;
+        // start where they ARE now, not where they were when they pressed play (message travel time)
+        const late = d.at ? Math.min(1.5, Math.max(0, (Date.now() - d.at) / 1000)) : 0;
+        if (d.pos != null) S.playhead = d.pos + late;
         if (S.play) S.play();
       } else if (d.t === 'stop') {
         if (S.engine && S.engine.playing && S.stopTransport) S.stopTransport();
@@ -146,7 +210,7 @@
    * Two triggers: an immediate send right after an edit (history-changed), plus a light poll
    * that catches continuous gestures (dragging a clip, riding a fader). Only changed state
    * is sent. */
-  let pollTimer = 0, editTimer = 0, lastSent = '';
+  let pollTimer = 0, editTimer = 0, lastSent = '', pendingStructure = false;
 
   function buildState() {
     const p = S.project;
@@ -158,15 +222,69 @@
     let js; try { js = JSON.stringify(buildState()); } catch (e) { return; }
     if (!force && js === lastSent) return;
     lastSent = js;
-    try { channel.trigger('client-state', JSON.parse(js)); } catch (e) {}
+    sendBig('client-state', JSON.parse(js), 3, 'state');
+  }
+  /** Same tracks, same effects, same audio — only values moved (faders, pans, knobs, clip positions)? */
+  function sameShape(a, b) {
+    if (!a || !b || a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      const x = a[i], y = b[i];
+      if (!x || !y || x.id !== y.id) return false;
+      const fx = x.fx || [], fy = y.fx || [];
+      if (fx.length !== fy.length) return false;
+      for (let j = 0; j < fx.length; j++) if (fx[j].id !== fy[j].id || fx[j].pluginId !== fy[j].pluginId || !!fx[j].bypass !== !!fy[j].bypass) return false;
+      if ((x.name || '') !== (y.name || '') || (x.color || '') !== (y.color || '')) return false;
+    }
+    return true;
+  }
+  /** Apply an edit WITHOUT rebuilding the audio graph — smooth, no hiccup in what's playing. */
+  function applyInPlace(st) {
+    const p = S.project, eng = S.engine;
+    let clipsMoved = false, mixMoved = false;
+    st.tracks.forEach((nt, i) => {
+      const t = p.tracks[i];
+      if (t.vol !== nt.vol || t.pan !== nt.pan || !!t.mute !== !!nt.mute || !!t.solo !== !!nt.solo) mixMoved = true;
+      t.vol = nt.vol; t.pan = nt.pan; t.mute = nt.mute; t.solo = nt.solo;
+      (nt.fx || []).forEach((f, j) => {
+        const mine = t.fx[j], np = f.params || {};
+        for (const k in np) if (!mine.params || mine.params[k] !== np[k]) { mine.params = mine.params || {}; mine.params[k] = np[k]; if (eng) eng.setFxParam(mine.id, k, np[k]); }
+        mine.preset = f.preset;
+      });
+      if (JSON.stringify(t.clips) !== JSON.stringify(nt.clips || [])) { t.clips = nt.clips || []; clipsMoved = true; }
+    });
+    if (st.master) {
+      const m = p.master;
+      if (m.vol !== st.master.vol) mixMoved = true;
+      m.vol = st.master.vol;
+      (st.master.fx || []).forEach((f, j) => { const mine = (m.fx || [])[j]; if (!mine) return; for (const k in (f.params || {})) if (!mine.params || mine.params[k] !== f.params[k]) { mine.params = mine.params || {}; mine.params[k] = f.params[k]; if (eng) eng.setFxParam(mine.id, k, f.params[k]); } });
+    }
+    if (st.bpm) p.bpm = st.bpm;
+    if (st.bpb) p.beatsPerBar = st.bpb;
+    if (st.loop) p.loop = st.loop;
+    if (mixMoved && S.refresh.mix) S.refresh.mix();
+    if (mixMoved && S.mixer && S.mixer.render) S.mixer.render();
+    if (S.timeline) { if (clipsMoved && S.timeline.resize) S.timeline.resize(); S.timeline.dirty = true; }
   }
   function applyState(st) {
     if (!st || !Array.isArray(st.tracks) || applying) return;
     applying = true;
     try {
+      // fast path: nothing structural changed, so don't rebuild anything (this is what keeps live edits smooth)
+      st.tracks.forEach((t) => { t.fx = t.fx || []; t.clips = t.clips || []; t.arm = false; });
+      if (sameShape(S.project.tracks, st.tracks) && (!st.master || sameShape([Object.assign({ id: 'm' }, S.project.master)], [Object.assign({ id: 'm' }, st.master)]))) {
+        // keep my own arm/monitor state
+        applyInPlace(st);
+        try { lastSent = JSON.stringify(buildState()); } catch (e) {}
+        applying = false;
+        return;
+      }
+      const armed = (S.project.tracks.find((t) => t.arm) || {}).id;
+      if (armed) st.tracks.forEach((t) => { if (t.id === armed) t.arm = true; });
       st.tracks.forEach((t) => { t.fx = t.fx || []; t.clips = t.clips || []; t.arm = false; });
       S.project.tracks = st.tracks;
       if (st.master) S.project.master = st.master;
+      // never rebuild the audio graph in the middle of a take — finish the take first
+      if (S.engine && S.engine.isRecording) { pendingStructure = true; if (S.timeline) { S.timeline.renderHeaders(); S.timeline.dirty = true; } try { lastSent = JSON.stringify(buildState()); } catch (e) {} applying = false; return; }
       if (st.bpm) S.project.bpm = st.bpm;
       if (st.bpb) S.project.beatsPerBar = st.bpb;
       if (st.loop) S.project.loop = st.loop;
@@ -182,7 +300,7 @@
   function startStateSync() {
     stopStateSync();
     try { lastSent = JSON.stringify(buildState()); } catch (e) { lastSent = ''; }
-    pollTimer = setInterval(() => diffSend(false), 300);
+    pollTimer = setInterval(() => diffSend(false), 120);
   }
   function stopStateSync() {
     if (pollTimer) { clearInterval(pollTimer); pollTimer = 0; }
@@ -192,7 +310,7 @@
   C.notifyEdit = () => {
     if (!C.active() || applying) return;
     if (editTimer) clearTimeout(editTimer);
-    editTimer = setTimeout(() => diffSend(false), 60);
+    editTimer = setTimeout(() => diffSend(false), 16);
   };
 
   /* ---- shared audio (M3) ----
@@ -238,7 +356,7 @@
       const r = await fetch(base + '/blob', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/octet-stream' }, await authHeader()), body: ct });
       if (!r.ok) throw new Error('upload ' + r.status);
       const j = await r.json();
-      if (channel) channel.trigger('client-asset', { assetId, name: meta.name || 'audio', duration: meta.duration || buf.duration, blobId: j.id, iv: Array.from(iv, (b) => b.toString(16).padStart(2, '0')).join('') });
+      if (channel) send('client-asset', { assetId, name: meta.name || 'audio', duration: meta.duration || buf.duration, blobId: j.id, iv: Array.from(iv, (b) => b.toString(16).padStart(2, '0')).join('') }, 2);
     } catch (e) {
       sharedAssets.delete(assetId); // let a later poll retry
       try { console.warn('[collab] shareAsset', e); } catch (_) {}
@@ -247,7 +365,7 @@
 
   async function receiveAsset(d) {
     if (!d || !d.assetId || !d.blobId) return;
-    if (S.buffers.has(d.assetId)) { sharedAssets.add(d.assetId); return; }
+    if (S.buffers.has(d.assetId) && !previewAssets.has(d.assetId)) { sharedAssets.add(d.assetId); return; }
     try {
       const key = await getKey();
       const base = apiBase();
@@ -257,15 +375,207 @@
       const ct = await r.arrayBuffer();
       const wav = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: hexToBytes(d.iv) }, key, ct);
       const audio = await S.ctx.decodeAudioData(wav.slice(0));
+      const wasPreview = previewAssets.delete(d.assetId);
       S.buffers.set(d.assetId, audio);
       S.project.assets[d.assetId] = { name: d.name || 'audio', duration: d.duration || audio.duration };
       sharedAssets.add(d.assetId);
+      // the live take was already playable from the streamed preview — just swap in full quality, quietly
+      if (wasPreview) { if (S.timeline) S.timeline.dirty = true; return; }
       // audio now exists — refresh so any clip using it draws its waveform and plays
       applying = true;
       try { if (S.refresh && S.refresh.structure) S.refresh.structure(); } catch (e) {}
       applying = false;
       S.toast && S.toast('Received “' + (d.name || 'audio') + '” from the session.');
     } catch (e) { try { console.warn('[collab] receiveAsset', e); } catch (_) {} }
+  }
+
+  /* ---- live takes: everyone sees (and gets) a recording WHILE it happens ----
+   * The person recording streams their take as it's captured: a waveform update and a few hundred ms of
+   * Opus-compressed audio, end-to-end encrypted with the room key, 4 times a second. Everyone else sees a
+   * live red box with the waveform growing on that track, and the moment the take stops the audio is
+   * already there to play (no waiting for an upload). The full-quality file still follows in the
+   * background and silently replaces the streamed copy. */
+  const previewAssets = new Set();
+  const OPUS_SR = 48000, FRAME = 960, PEAK_SAMPLES = 1200; // 20 ms frames, a waveform point every 25 ms
+  let tx = null;                       // the take I'm streaming
+  const remote = new Map();            // takes others are streaming: id -> state
+  const myName = () => { try { const me = channel && (channel.me || (channel.presence && channel.presence.me)); return (me && me.user_info && me.user_info.name) || 'Someone'; } catch (e) { return 'Someone'; } };
+  const canOpus = () => typeof AudioEncoder !== 'undefined' && typeof AudioDecoder !== 'undefined';
+  async function seal(u8) { const key = await getKey(); if (!key) return null; const iv = crypto.getRandomValues(new Uint8Array(12)); const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, u8)); return { iv: b64(iv), a: b64(ct) }; }
+  async function unseal(iv, a) { const key = await getKey(); if (!key) return null; return new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(iv) }, key, unb64(a))); }
+
+  const recTap = {
+    start(rec, sr) {
+      tx = null;
+      if (!C.active() || !roomKey) return;
+      const id = randomId();
+      const t = (tx = { id, trackId: rec.trackId, startPos: rec.startPos, sr, seq: 0, frames: [], fpos: 0, frame: new Float32Array(FRAME), fill: 0, rpos: 0, prev: 0, ts: 0, peaks: [], pk: 0, pn: 0, desc: null, sentDesc: false, enc: null, done: false, assetId: null });
+      send('client-rec', { k: 's', id, tr: rec.trackId, sp: rec.startPos, who: myName(), audio: canOpus() }, 0);
+      if (canOpus()) {
+        try {
+          t.enc = new AudioEncoder({
+            output: (chunk, meta) => { if (meta && meta.decoderConfig && meta.decoderConfig.description && !t.desc) t.desc = new Uint8Array(meta.decoderConfig.description); const d = new Uint8Array(chunk.byteLength); chunk.copyTo(d); t.frames.push(d); },
+            error: (e) => { try { console.warn('[collab] encoder', e); } catch (_) {} t.enc = null; },
+          });
+          t.enc.configure({ codec: 'opus', sampleRate: OPUS_SR, numberOfChannels: 1, bitrate: 64000 });
+        } catch (e) { t.enc = null; }
+      }
+      t.timer = setInterval(() => flushTx(t, false), 250);
+    },
+    chunk(d, sr) {
+      const t = tx; if (!t || t.done) return;
+      // resample the mic to 48 kHz (Opus' native rate) on the fly, and keep a running waveform
+      const step = sr / OPUS_SR;
+      let pos = t.rpos;
+      while (pos < d.length) {
+        const i = Math.floor(pos), f = pos - i;
+        const a = i < 0 ? t.prev : d[i], b = i + 1 < d.length ? d[i + 1] : d[i];
+        const v = a + (b - a) * f;
+        t.frame[t.fill++] = v;
+        const av = v < 0 ? -v : v; if (av > t.pk) t.pk = av;
+        if (++t.pn === PEAK_SAMPLES) { t.peaks.push(Math.min(255, Math.round(t.pk * 255))); t.pk = 0; t.pn = 0; }
+        if (t.fill === FRAME) {
+          if (t.enc) { try { t.enc.encode(new AudioData({ format: 'f32', sampleRate: OPUS_SR, numberOfFrames: FRAME, numberOfChannels: 1, timestamp: t.ts, data: t.frame })); } catch (e) {} }
+          t.ts += (FRAME / OPUS_SR) * 1e6; t.frame = new Float32Array(FRAME); t.fill = 0;
+        }
+        pos += step;
+      }
+      t.rpos = pos - d.length; t.prev = d[d.length - 1];
+    },
+    stop() {
+      const t = tx; if (!t) return;
+      t.done = true; clearInterval(t.timer);
+      (async () => {
+        if (t.enc) {
+          if (t.fill) { try { t.enc.encode(new AudioData({ format: 'f32', sampleRate: OPUS_SR, numberOfFrames: t.fill, numberOfChannels: 1, timestamp: t.ts, data: t.frame.subarray(0, t.fill) })); } catch (e) {} }
+          try { await t.enc.flush(); } catch (e) {} try { t.enc.close(); } catch (e) {}
+        }
+        if (t.pn) t.peaks.push(Math.min(255, Math.round(t.pk * 255)));
+        await flushTx(t, true);
+        t.flushed = true; sendEnd(t);
+        // no take came out of it (too short / cancelled): tell everyone to drop the live box
+        setTimeout(() => { if (!t.ended) { t.ended = true; send('client-rec', { k: 'x', id: t.id }, 1); if (tx === t) tx = null; } }, 4000);
+      })();
+    },
+  };
+  async function flushTx(t, final) {
+    if (t.busy) { if (final) await t.busy; else return; }
+    const frames = t.frames.splice(0), peaks = t.peaks.splice(0);
+    if (!frames.length && !peaks.length) return;
+    const run = (async () => {
+      // pack frames: [u16 length][bytes]...
+      let n = 0; frames.forEach((f) => (n += 2 + f.length));
+      const buf = new Uint8Array(n); let o = 0;
+      for (const f of frames) { buf[o++] = f.length >> 8; buf[o++] = f.length & 255; buf.set(f, o); o += f.length; }
+      const sealed = frames.length ? await seal(buf) : null;
+      const msg = { k: 'd', id: t.id, q: t.seq++, p: b64(Uint8Array.from(peaks)) };
+      if (sealed) { msg.iv = sealed.iv; msg.a = sealed.a; }
+      if (t.desc && !t.sentDesc) { msg.ds = b64(t.desc); t.sentDesc = true; }
+      send('client-rec', msg, 1);
+    })();
+    t.busy = run; await run; t.busy = null;
+  }
+  function sendEnd(t) {
+    if (!t.flushed || !t.assetId || t.ended) return;
+    t.ended = true;
+    send('client-rec', { k: 'e', id: t.id, as: t.assetId, n: t.name, dur: t.duration, q: t.seq }, 1);
+    // the full-quality file goes up right after (the poll would do it too, this is just sooner)
+    setTimeout(() => scanAssets(), 50);
+    if (tx === t) tx = null;
+  }
+  function onTakeAdded(d) {
+    if (pendingStructure) { pendingStructure = false; setTimeout(() => { applying = true; try { S.refresh.structure(); } catch (e) {} applying = false; }, 0); }
+    const t = tx; if (!t || !d) return;
+    t.assetId = d.assetId; t.name = d.name; t.duration = d.duration;
+    // its audio is already on its way to everyone — don't also upload it as "missing" before the preview lands
+    sendEnd(t);
+  }
+
+  /* receiving side */
+  function onRemoteRec(d) {
+    if (!d || !d.id) return;
+    let r = remote.get(d.id);
+    if (d.k === 's') {
+      remote.set(d.id, (r = { id: d.id, trackId: d.tr, startPos: d.sp || 0, who: d.who || 'Someone', peaks: [], peakSec: PEAK_SAMPLES / OPUS_SR, lastAt: performance.now(), heard: 0, next: 0, waiting: new Map(), pcm: [], dec: null, preskip: 312, ts: 0, audio: d.audio }));
+      try { S.toast && S.toast(r.who + ' is recording…'); } catch (e) {}
+      kick();
+      return;
+    }
+    if (!r) return;
+    if (d.k === 'd') { r.waiting.set(d.q, d); drain(r); return; }
+    if (d.k === 'e') {
+      r.end = d; drain(r);
+      // if a piece never arrives, don't wait forever: finish with what we have (the full file follows anyway)
+      setTimeout(() => { if (remote.get(d.id) === r && !r.draining) { r.waiting.clear(); r.next = d.q; drain(r); } }, 4000);
+      return;
+    }
+    if (d.k === 'x') { remote.delete(d.id); if (S.timeline) S.timeline.dirty = true; }
+  }
+  async function drain(r) {
+    if (r.draining) return;
+    r.draining = true;
+    try {
+      while (r.waiting.has(r.next)) {
+        const d = r.waiting.get(r.next); r.waiting.delete(r.next); r.next++;
+        if (d.p) { const pk = unb64(d.p); for (const v of pk) r.peaks.push(v / 255); r.heard = r.peaks.length * r.peakSec; r.lastAt = performance.now(); }
+        if (d.ds && canOpus() && !r.dec) {
+          const desc = unb64(d.ds);
+          r.preskip = 0; // the decoder reads the encoder delay from this header and trims it itself
+          try {
+            r.dec = new AudioDecoder({ output: (a) => { const f = new Float32Array(a.numberOfFrames); try { a.copyTo(f, { planeIndex: 0, format: 'f32-planar' }); } catch (e) {} r.pcm.push(f); a.close(); }, error: (e) => { try { console.warn('[collab] decoder', e); } catch (_) {} r.dec = null; } });
+            r.dec.configure({ codec: 'opus', sampleRate: OPUS_SR, numberOfChannels: 1, description: desc });
+          } catch (e) { r.dec = null; }
+        }
+        if (d.a && r.dec) {
+          const u8 = await unseal(d.iv, d.a);
+          if (u8) for (let o = 0; o + 2 <= u8.length;) { const n = (u8[o] << 8) | u8[o + 1]; o += 2; try { r.dec.decode(new EncodedAudioChunk({ type: 'key', timestamp: r.ts, data: u8.subarray(o, o + n) })); } catch (e) {} r.ts += (FRAME / OPUS_SR) * 1e6; o += n; }
+        }
+      }
+      if (r.end && r.next >= r.end.q) await finishRemote(r);
+    } catch (e) { try { console.warn('[collab] live take', e); } catch (_) {} }
+    r.draining = false;
+  }
+  async function finishRemote(r) {
+    remote.delete(r.id);
+    const e = r.end;
+    if (r.dec) { try { await r.dec.flush(); } catch (err) {} try { r.dec.close(); } catch (err) {} }
+    if (r.pcm.length && e.as && !S.buffers.has(e.as)) {
+      const total = r.pcm.reduce((n, f) => n + f.length, 0);
+      const want = Math.max(1, Math.round((e.dur || total / OPUS_SR) * OPUS_SR));
+      const buf = new AudioBuffer({ numberOfChannels: 1, length: want, sampleRate: OPUS_SR });
+      const out = buf.getChannelData(0);
+      let skip = r.preskip, o = 0;
+      for (const f of r.pcm) { let i = 0; if (skip) { const k = Math.min(skip, f.length); skip -= k; i = k; } const n = Math.min(f.length - i, want - o); if (n > 0) { out.set(f.subarray(i, i + n), o); o += n; } }
+      S.buffers.set(e.as, buf);
+      S.project.assets[e.as] = { name: e.n || 'Take', duration: e.dur || buf.duration };
+      previewAssets.add(e.as);
+      sharedAssets.add(e.as);   // they'll send the full-quality file; we never upload their take back
+      applying = true;
+      try { if (!(S.engine && S.engine.isRecording) && S.refresh && S.refresh.structure) S.refresh.structure(); else pendingStructure = true; } catch (err) {}
+      applying = false;
+    }
+    if (S.timeline) S.timeline.dirty = true;
+  }
+  /** For the timeline: takes other people are recording right now. */
+  C.remoteRecs = () => {
+    const now = performance.now(), list = [];
+    for (const r of remote.values()) {
+      // grow smoothly between updates, but never run more than ~0.6 s ahead of what we actually heard
+      const est = r.heard + Math.min(0.6, (now - r.lastAt) / 1000);
+      list.push({ trackId: r.trackId, startPos: r.startPos, len: r.end ? r.heard : est, peaks: r.peaks, peakSec: r.peakSec, who: r.who });
+    }
+    return list;
+  };
+  // keep the timeline animating while someone else records
+  let kickRaf = 0;
+  function kick() {
+    if (kickRaf) return;
+    const tick = () => {
+      kickRaf = 0;
+      const now = performance.now();
+      for (const [id, r] of remote) if (!r.end && now - r.lastAt > 15000) remote.delete(id); // they dropped out mid-take
+      if (!remote.size) { if (S.timeline) S.timeline.dirty = true; return; } if (S.timeline) S.timeline.dirty = true; kickRaf = requestAnimationFrame(tick); };
+    kickRaf = requestAnimationFrame(tick);
   }
 
   /* ---- room lifecycle ---- */
@@ -295,6 +605,7 @@
     stopStateSync();
     lastSent = '';
     roomKey = null; cryptoKey = null; sharedAssets.clear();
+    outQ = []; clearTimeout(pumpTimer); remote.clear(); if (tx) { clearInterval(tx.timer); tx = null; }
     try { if (channel && room) client.unsubscribe('presence-sess-' + room); } catch (e) {}
     channel = null; room = null; host = false; connected = false; members = [];
     emit();
@@ -309,6 +620,9 @@
     if (S.collabBar) S.collabBar.init();
     // every edit snapshots history — use that as the "something changed" signal to sync live
     try { S.on && S.on('history-changed', () => C.notifyEdit()); } catch (e) {}
+    try { S.on && S.on('take-added', (d) => onTakeAdded(d)); } catch (e) {}
+    S.recTaps = S.recTaps || new Set();
+    S.recTaps.add(recTap);
   };
 
   /* ---- presence bar: a small banner showing who's in the room ---- */

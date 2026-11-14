@@ -1416,39 +1416,62 @@
       for (const c of t.clips) { try { drawClip(c, t, i, y, w, off); } catch (e) {} }
     });
 
-    // recording preview
-    if (S.engine && S.engine.isRecording) {
-      const r = S.engine.rec;
-      const row = p.tracks.findIndex((t) => t.id === r.trackId);
-      if (row >= 0) {
-        const x0 = r.startPos * TL.pps - off;
-        const cw = Math.max(2, (S.playhead - r.startPos) * TL.pps);
-        g.fillStyle = 'rgba(255,77,94,.22)';
-        rr(x0, RULER + row * ROW + CLIP_TOP, cw, CLIP_H, 7);
-        g.fill();
-        g.strokeStyle = '#ff4d5e';
-        g.lineWidth = 1.5;
-        g.stroke();
-        g.fillStyle = '#ff4d5e';
-        g.fillRect(x0, RULER + row * ROW + CLIP_TOP, cw, 3);
-        // live waveform: newest peak sits at the playhead, older ones run back to the left
-        const pk = r.peaks;
-        if (pk && pk.length) {
-          const xEnd = x0 + cw, top = RULER + row * ROW + CLIP_TOP + 4, hh = CLIP_H - 6, mid = top + hh / 2;
-          const perPx = 1 / (r.peakSec * TL.pps); // peaks per pixel
-          const from = Math.max(Math.floor(x0), 0), to = Math.min(Math.ceil(xEnd), w);
-          g.fillStyle = 'rgba(255,170,180,.9)';
-          for (let x = from; x < to; x++) {
-            const a = pk.length - (xEnd - x) * perPx, b = a + perPx;
-            let i0 = Math.max(0, Math.floor(a)), i1 = Math.min(pk.length, Math.ceil(b));
-            if (i1 <= i0) continue;
-            let m = 0;
-            for (let i = i0; i < i1; i++) if (pk[i] > m) m = pk[i];
-            const ah = Math.max(1, Math.min(1, m * 1.15) * hh / 2);
-            g.fillRect(x, mid - ah, 1, ah * 2);
-          }
+    // recording previews: mine (red) and anyone recording in the live session (their box grows as they sing)
+    const liveTake = (trackId, startPos, len, pk, peakSec, who) => {
+      const row = p.tracks.findIndex((t) => t.id === trackId);
+      if (row < 0) return;
+      const x0 = startPos * TL.pps - off;
+      const cw = Math.max(2, len * TL.pps);
+      if (x0 > w || x0 + cw < 0) return;
+      const top0 = RULER + row * ROW + CLIP_TOP;
+      g.fillStyle = 'rgba(255,77,94,.22)';
+      rr(x0, top0, cw, CLIP_H, 7);
+      g.fill();
+      g.strokeStyle = '#ff4d5e';
+      g.lineWidth = 1.5;
+      g.stroke();
+      g.fillStyle = '#ff4d5e';
+      g.fillRect(x0, top0, cw, 3);
+      // live waveform: newest peak sits at the right edge, older ones run back to the left
+      if (pk && pk.length) {
+        const xEnd = x0 + cw, top = top0 + 4, hh = CLIP_H - 6, mid = top + hh / 2;
+        const perPx = 1 / (peakSec * TL.pps); // peaks per pixel
+        const from = Math.max(Math.floor(x0), 0), to = Math.min(Math.ceil(xEnd), w);
+        const have = Math.min(pk.length, len / peakSec); // don't stretch the waveform past what's arrived
+        g.fillStyle = 'rgba(255,170,180,.9)';
+        for (let x = from; x < to; x++) {
+          const a = ((x - x0) / cw) * (len / peakSec), b = a + perPx;
+          if (a >= have) break;
+          const i0 = Math.max(0, Math.floor(a)), i1 = Math.min(pk.length, Math.ceil(b));
+          if (i1 <= i0) continue;
+          let m = 0;
+          for (let i = i0; i < i1; i++) if (pk[i] > m) m = pk[i];
+          const ah = Math.max(1, Math.min(1, m * 1.15) * hh / 2);
+          g.fillRect(x, mid - ah, 1, ah * 2);
         }
       }
+      if (who) {
+        g.font = '600 11px system-ui, sans-serif';
+        const label = '● ' + who;
+        const tw = g.measureText(label).width + 10;
+        const lx = Math.max(x0, 2), ly = top0 + 6;
+        g.fillStyle = 'rgba(255,77,94,.92)';
+        rr(lx + 4, ly, tw, 16, 8);
+        g.fill();
+        g.fillStyle = '#fff';
+        g.fillText(label, lx + 9, ly + 12);
+      }
+    };
+    if (S.engine && S.engine.isRecording) {
+      const r = S.engine.rec;
+      const len = S.playhead - r.startPos;
+      const pk = r.peaks;
+      // mine: newest peak pinned to the playhead
+      if (pk && pk.length) liveTake(r.trackId, r.startPos, Math.max(len, 0), pk.length * r.peakSec > len ? pk.slice(Math.max(0, pk.length - Math.ceil(len / r.peakSec))) : pk, r.peakSec, null);
+      else liveTake(r.trackId, r.startPos, Math.max(len, 0), null, r.peakSec, null);
+    }
+    if (S.collab && S.collab.remoteRecs) {
+      try { for (const r of S.collab.remoteRecs()) liveTake(r.trackId, r.startPos, r.len, r.peaks, r.peakSec, r.who); } catch (e) {}
     }
 
     // slice tool guide
