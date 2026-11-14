@@ -29,6 +29,12 @@
     const op = Math.max(0.3, Math.min(1, (+cfg.flatOpacity || 92) / 100));
     st.setProperty('--flat-panel', 'rgba(' + css(mix(BASES[1], a, t * 0.7)) + ', ' + op + ')');
     st.setProperty('--panel-tint', 'rgba(' + css(a) + ', ' + (t * 0.45).toFixed(3) + ')');
+    // text/icons ON the accent colour: white, unless the accent is so light that white would be hard to read
+    const lin = (v) => { v /= 255; return v <= 0.04 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+    const L = 0.2126 * lin(a[0]) + 0.7152 * lin(a[1]) + 0.0722 * lin(a[2]);
+    const dark = 1.05 / (L + 0.05) < 3;
+    st.setProperty('--on-accent', dark ? '#12131a' : '#ffffff');
+    root.classList.toggle('accent-light', dark);
     root.classList.toggle('ui-flat', cfg.style === 'flat');
   }
   T.get = () => Object.assign({}, cfg);

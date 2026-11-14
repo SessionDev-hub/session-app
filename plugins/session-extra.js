@@ -69,34 +69,77 @@
 
   /* ================= Pitch Shifter (worklet: two crossfaded read heads) ================= */
   Studio.registerWorklet('ss-pitch', `
+    /* Pitch shifter with waveform-matched splices.
+     * One read head plays the recent past at the new speed. When it drifts too far from "now", a second
+     * head takes over — placed where its waveform lines up best with the old one (cross-correlation), then
+     * a short crossfade hands over. Because the two heads are in phase, nothing cancels or warbles: steady
+     * notes stay steady and voices keep their body. Also used by the Octaver and the Harmonizer. */
     class SsPitch extends AudioWorkletProcessor {
       static get parameterDescriptors() { return [${k('semis', 0, -12, 12)}, ${k('cents', 0, -100, 100)}, ${k('grain', 60, 20, 120)}, ${k('mix', 1, 0, 1)}]; }
-      constructor() { super(); this.size = 1 << 15; this.buf = []; this.w = 0; this.ph = 0; }
-      read(b, pos) { const s = this.size, i = Math.floor(pos), f = pos - i; const a = b[(i % s + s) % s], c = b[((i + 1) % s + s) % s]; return a + (c - a) * f; }
+      constructor() {
+        super();
+        this.size = 1 << 16; this.mask = this.size - 1;
+        this.buf = [new Float32Array(this.size), new Float32Array(this.size)];
+        this.mono = new Float32Array(this.size);
+        this.w = 0; this.n = 0;
+        this.head = -1; this.next = -1; this.xf = 0; this.XF = 0;
+      }
+      rd(b, pos) { const i = Math.floor(pos), f = pos - i; const a = b[i & this.mask], c = b[(i + 1) & this.mask]; return a + (c - a) * f; }
+      // best place for a new head near "guess", whose next L samples (read at rate r) match the current head's
+      match(cur, guess, range, L, r) {
+        const m = this.mono, M = this.mask, step = 2, cnt = L >> 1;
+        const seg = this.seg && this.seg.length >= cnt ? this.seg : (this.seg = new Float32Array(cnt));
+        for (let k = 0; k < cnt; k++) seg[k] = this.rd(m, cur + k * step * r);
+        const score = (cand, exact) => {
+          let xy = 0, yy = 1e-9;
+          for (let k = 0; k < cnt; k++) { const b = exact ? this.rd(m, cand + k * step * r) : m[Math.round(cand + k * step * r) & M]; xy += seg[k] * b; yy += b * b; }
+          return xy / Math.sqrt(yy);
+        };
+        // coarse pass every 6 samples, then a fine pass around the winner
+        let best = guess, bs = -Infinity;
+        for (let d = -range; d <= range; d += 6) { const sc = score(guess + d, false); if (sc > bs) { bs = sc; best = guess + d; } }
+        const c0 = best; bs = -Infinity;
+        for (let d = -6; d <= 6; d++) { const sc = score(c0 + d, true); if (sc > bs) { bs = sc; best = c0 + d; } }
+        return best;
+      }
       process(inputs, outputs, p) {
         const inp = inputs[0], out = outputs[0];
         if (!inp || !inp.length) return true;
-        const n = inp[0].length, s = this.size;
-        const ratio = Math.pow(2, (p.semis[0] + p.cents[0] / 100) / 12);
-        const W = Math.max(64, Math.round(p.grain[0] / 1000 * sampleRate));
+        const n = inp[0].length, chans = out.length;
+        const r = Math.pow(2, (p.semis[0] + p.cents[0] / 100) / 12);
         const mix = p.mix[0];
-        const inc = (1 - ratio) / W;
-        for (let c = 0; c < out.length; c++) if (!this.buf[c]) this.buf[c] = new Float32Array(s);
-        let w = this.w, ph = this.ph;
+        const W = Math.max(256, Math.round(p.grain[0] / 1000 * sampleRate));   // how far the head may drift
+        const XF = Math.min(1024, Math.max(128, Math.round(W * 0.35)));         // handover crossfade
+        const L = Math.min(XF, 512);                                            // samples compared when matching
+        const minD = Math.ceil(L * Math.max(1, r) + 64), maxD = minD + W;
+        const range = Math.round(Math.min(0.012 * sampleRate, W * 0.4));        // search ±12 ms
         for (let i = 0; i < n; i++) {
-          ph += inc; ph -= Math.floor(ph);
-          const ph2 = (ph + 0.5) % 1;
-          const g1 = Math.sin(Math.PI * ph), g2 = Math.sin(Math.PI * ph2);
-          for (let c = 0; c < out.length; c++) {
-            const x = inp[c < inp.length ? c : inp.length - 1][i];
-            const b = this.buf[c];
-            b[w] = x;
-            const y = this.read(b, w - 2 - ph * W) * g1 + this.read(b, w - 2 - ph2 * W) * g2;
-            out[c][i] = x * (1 - mix) + y * mix;
+          const w = this.w, wi = w & this.mask;   // w counts up forever; wi is its slot in the ring
+          let ms = 0;
+          for (let c = 0; c < 2; c++) { const x = inp[Math.min(c, inp.length - 1)][i]; this.buf[c][wi] = x; ms += x; }
+          this.mono[wi] = ms * 0.5;
+          this.n++;
+          if (this.head < 0) this.head = w - (r < 1 ? minD : maxD);
+          const delay = w - this.head;
+          // start a handover when the head drifts out of range (and there is enough history to search)
+          if (this.xf === 0 && Math.abs(r - 1) > 1e-4 && this.n > maxD + range + 2 * L && (delay > maxD || delay < minD)) {
+            const guess = r < 1 ? w - minD - range : w - maxD + range;
+            this.next = this.match(this.head, guess, range, L, r);
+            this.XF = XF; this.xf = XF;
           }
-          w = (w + 1) % s;
+          let a = 0;
+          if (this.xf > 0) a = 1 - this.xf / this.XF;
+          for (let c = 0; c < chans; c++) {
+            const b = this.buf[c];
+            let y = this.rd(b, this.head);
+            if (this.xf > 0) y = y * (1 - a) + this.rd(b, this.next) * a;
+            const x = inp[Math.min(c, inp.length - 1)][i];
+            out[c][i] = Math.abs(r - 1) < 1e-4 ? x : x * (1 - mix) + y * mix;
+          }
+          this.head += r;
+          if (this.xf > 0) { this.next += r; if (--this.xf === 0) this.head = this.next; }
+          this.w = w + 1;
         }
-        this.w = w; this.ph = ph;
         return true;
       }
     }

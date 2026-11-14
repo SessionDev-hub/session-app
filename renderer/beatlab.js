@@ -101,6 +101,16 @@
     #beatlab .bl-lbl{font-size:11px;color:var(--dim)}
     #beatlab .bl-tog.on{background:var(--accent);color:#fff;border-color:transparent}
     #beatlab .bl-rec.on{background:#ff4d5e;color:#fff;border-color:transparent}
+    #beatlab .bl-samp{display:flex;flex-direction:column;gap:6px;margin-bottom:8px;flex:none}
+    #beatlab canvas.bl-wave{width:100%;height:70px;border-radius:8px;display:block}
+    .bl-sed .bl-sedgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;max-height:60vh;overflow:auto;margin:8px 0 12px}
+    .bl-sed .bl-sedbox{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+    .bl-sed .bl-sedt{font-weight:700;font-size:12px;margin-bottom:6px;color:var(--accent-soft)}
+    .bl-sed .bl-sedrow{display:grid;grid-template-columns:92px 1fr 56px;align-items:center;gap:6px;font-size:11.5px;margin:3px 0}
+    .bl-sed .bl-sedrow b{font:600 10.5px var(--mono);text-align:right;color:var(--dim)}
+    .bl-sed .bl-sedrow input[type=range]{width:100%}
+    .bl-sed .bl-sel{background:#14161c;border:1px solid var(--line-hi);color:var(--text);border-radius:7px;padding:4px 6px;font:inherit}
+    .bl-sed .bl-rtools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     /* song */
     #beatlab .bl-song{display:flex;flex-direction:column;gap:14px;overflow:auto}
     #beatlab .bl-pal{display:flex;flex-wrap:wrap;gap:8px}
@@ -266,6 +276,8 @@
     BI().FAMILIES.forEach(([k, label]) => add.append(button('＋ ' + label.replace(/s$/, ''), 'btn ghost sm', () => { S.beat.addChannel('drum', { kind: k, name: label.replace(/s$/, '') }); renderBody(); })));
     add.append(button('＋ 808', 'btn ghost sm', () => { S.beat.addChannel('bass', { name: '808 ' + (beat.channels.filter((c) => c.type === 'bass').length + 1), preset: '808-clean' }); renderBody(); }));
     add.append(button('＋ Instrument', 'btn ghost sm', () => { S.beat.addChannel('keys', { name: 'Keys ' + (beat.channels.filter((c) => c.type === 'keys').length + 1), preset: 'piano' }); renderBody(); }));
+    add.append(button('＋ Synth', 'btn ghost sm', () => { const SY = BI().SYNTHS || {}; const pr = SY.synth && SY.synth.presets[0]; const c = S.beat.addChannel('keys', { name: 'Synth ' + (beat.channels.filter((x) => x.inst).length + 1), inst: 'synth', ip: pr ? Object.assign({}, pr.p) : {}, ipName: pr ? pr.name : '' }); openRoll(c); }));
+    add.append(button('＋ Sampler / Slicer', 'btn ghost sm', () => { state.tab = 'custom'; render(); }));
     wrap.append(tools, sc, add);
     return wrap;
   }
@@ -354,7 +366,10 @@
   // 808 / keys / custom in the rack: a mini preview of the notes; click to open the piano roll
   function pitchedRow(c, total, idx, beat) {
     const row = el('div', 'bl-row');
-    const sub = c.type === 'bass' ? ((BI().BASS_PRESETS.find((x) => x.id === c.preset) || {}).name || '808') : c.type === 'keys' ? ((BI().KEY_PRESETS.find((x) => x.id === c.preset) || {}).name || 'Piano') : 'Custom sample';
+    const SY = BI().SYNTHS || {};
+    const sub = c.type === 'bass' ? ((BI().BASS_PRESETS.find((x) => x.id === c.preset) || {}).name || '808')
+      : c.type === 'keys' ? (c.inst && SY[c.inst] ? SY[c.inst].name.replace('Session ', '') + (c.ipName ? ' · ' + c.ipName : '') : ((BI().KEY_PRESETS.find((x) => x.id === c.preset) || {}).name || 'Piano'))
+      : (Array.isArray(c.slices) && c.slices.length ? 'Slicer · ' + c.slices.length + ' slices' : 'Sampler');
     const name = nameBlock(c, idx, sub, (e) => menu(e.clientX, e.clientY, [{ label: 'Open piano roll', action: () => openRoll(c) }, { sep: true }, ...channelMenuItems(c)]));
     const cells = el('div', 'bl-cells');
     const notes = S.beat.notes(c);
@@ -433,15 +448,34 @@
         knob('tone', 'Tone', 800, 12000, 50, (v) => (v / 1000).toFixed(1) + 'k'),
         el('span', 'bl-io', 'Tip: let a note overlap the next one and the 808 slides into it.'));
     } else {
-      const sel = el('select', 'bl-sel'); BI().KEY_PRESETS.forEach((p) => { const o = el('option'); o.value = p.id; o.textContent = p.name; sel.appendChild(o); });
-      sel.value = ch.preset || 'piano'; sel.onchange = () => { ch.preset = sel.value; S.beat.channelChanged(); audition(ch, { note: 60, vel: 0.9, dur: 0.6 }); renderBody(); };
+      const sel = el('select', 'bl-sel');
+      const grp = (label, items) => { const g = el('optgroup'); g.label = label; items.forEach(([v, t]) => { const o = el('option'); o.value = v; o.textContent = t; g.appendChild(o); }); sel.appendChild(g); };
+      const SY = BI().SYNTHS || {};
+      grp('Instrument plugins', Object.keys(SY).map((id) => ['s:' + id, SY[id].name]));
+      grp('Quick sounds', BI().KEY_PRESETS.map((p) => ['k:' + p.id, p.name]));
+      sel.value = ch.inst && SY[ch.inst] ? 's:' + ch.inst : 'k:' + (ch.preset || 'piano');
+      sel.onchange = () => {
+        const [kind, id] = sel.value.split(':');
+        if (kind === 's') { if (ch.inst !== id) { ch.inst = id; const first = (SY[id].presets || [])[0]; ch.ip = first ? Object.assign({}, first.p) : {}; ch.ipName = first ? first.name : ''; } }
+        else { ch.inst = null; ch.preset = id; }
+        S.beat.channelChanged(); audition(ch, { note: 60, vel: 0.9, dur: 0.6 }); renderBody();
+      };
       row.append(el('span', 'bl-lbl', 'Instrument'), sel);
+      if (ch.inst && SY[ch.inst]) {
+        const syn = SY[ch.inst];
+        const ps = el('select', 'bl-sel'); ps.title = 'Presets';
+        const none = el('option'); none.value = ''; none.textContent = ch.ipName ? ch.ipName : 'Custom sound'; ps.appendChild(none);
+        syn.presets.forEach((p, i) => { if (p.name === ch.ipName) return; const o = el('option'); o.value = String(i); o.textContent = p.name; ps.appendChild(o); });
+        ps.onchange = () => { if (ps.value === '') return; const p = syn.presets[+ps.value]; ch.ip = Object.assign({}, p.p); ch.ipName = p.name; S.beat.channelChanged(); audition(ch, { note: 60, vel: 0.9, dur: 0.8 }); renderBody(); };
+        row.append(el('span', 'bl-lbl', 'Preset'), ps, button('🎛 Edit sound…', 'btn sm', () => soundEditor(ch)), el('span', 'bl-io', syn.desc));
+      }
     }
     return row;
   }
 
   function rollRange(ch) {
     const st = state.roll[ch.id] || { oct: 0 };
+    if (ch.type === 'custom' && Array.isArray(ch.slices) && ch.slices.length) return { root: ch.root == null ? 48 : ch.root, rows: Math.max(8, ch.slices.length) };
     const root = (ch.type === 'bass' ? 24 : 48) + (st.oct || 0) * 12;
     return { root, rows: ch.type === 'bass' ? 25 : 37 };
   }
@@ -464,7 +498,8 @@
       const note = root + r;
       const isBlack = NOTE_NAMES[note % 12].includes('#');
       const prow = el('div', 'bl-prow' + (isBlack ? ' blk' : ''));
-      const key = el('div', 'bl-key' + (isBlack ? ' black' : ''), noteName(note));
+      const sliceIx = ch.type === 'custom' && Array.isArray(ch.slices) && ch.slices.length ? note - (ch.root == null ? 48 : ch.root) : -1;
+      const key = el('div', 'bl-key' + (isBlack && sliceIx < 0 ? ' black' : ''), sliceIx >= 0 ? 'Slice ' + (sliceIx + 1) : noteName(note));
       key.onpointerdown = () => audition(ch, { note, vel: state.kb.vel, dur: 0.4 });
       const cells = el('div', 'bl-pcells'); rowEls[note] = cells;
       for (let s = 0; s < total; s++) {
@@ -498,6 +533,116 @@
     return sc;
   }
 
+  /* ---------- instrument sound editor (all knobs of an instrument plugin) ---------- */
+  function soundEditor(ch) {
+    const syn = (BI().SYNTHS || {})[ch.inst]; if (!syn) return;
+    const P = BI().synthParams(ch.inst, ch.ip);
+    const dlg = el('dialog', 'modal bl-sed'); dlg.style.width = 'min(760px, 96vw)';
+    dlg.innerHTML = '<h3 style="margin:0 0 2px">' + syn.name + ' — ' + (ch.name || '') + '</h3><p class="hint" style="margin:0 0 10px">' + syn.desc + '. Changes play a test note; your piano roll uses them right away.</p>';
+    const top = el('div', 'bl-rtools');
+    const ps = el('select', 'bl-sel'); const o0 = el('option'); o0.value = ''; o0.textContent = 'Presets…'; ps.appendChild(o0);
+    syn.presets.forEach((p, i) => { const o = el('option'); o.value = String(i); o.textContent = p.name; ps.appendChild(o); });
+    top.append(ps, button('Reset to default', 'btn ghost sm', () => { ch.ip = {}; ch.ipName = ''; S.beat.channelChanged(); dlg.close(); soundEditor(ch); }),
+      button('▶ Test', 'btn ghost sm', () => test(0)), el('span', 'bl-sp'));
+    dlg.append(top);
+    const body = el('div', 'bl-sedgrid');
+    let tmr = null;
+    const test = (delay) => { clearTimeout(tmr); tmr = setTimeout(() => audition(ch, { note: 60, vel: 0.9, dur: 0.7 }), delay == null ? 160 : delay); };
+    const set = (id, v, label) => { ch.ip = Object.assign({}, ch.ip || {}, { [id]: v }); ch.ipName = ''; if (label) label.textContent = fmt(syn.params.find((p) => p.id === id), v); S.beat.channelChanged(); test(); };
+    const fmt = (p, v) => (p.type === 'select' ? '' : (Math.abs(v) >= 100 || Number.isInteger(+v) ? Math.round(v) : (+v).toFixed(2)) + (p.unit ? ' ' + p.unit : ''));
+    const groups = [];
+    syn.params.forEach((p) => { let g = groups.find((x) => x.name === (p.g || 'Sound')); if (!g) groups.push((g = { name: p.g || 'Sound', ps: [] })); g.ps.push(p); });
+    groups.forEach((g) => {
+      const box = el('div', 'bl-sedbox'); box.append(el('div', 'bl-sedt', g.name));
+      g.ps.forEach((p) => {
+        const r = el('label', 'bl-sedrow'); const nm = el('span', null, p.name); const val = el('b');
+        let input;
+        if (p.type === 'select') { input = el('select', 'bl-sel'); p.options.forEach((op) => { const o = el('option'); o.value = op; o.textContent = op; input.appendChild(o); }); input.value = P[p.id]; input.onchange = () => set(p.id, input.value, val); }
+        else {
+          const log = p.scale === 'log' && p.min > 0;
+          const toR = (v) => (log ? Math.round(1000 * Math.log(v / p.min) / Math.log(p.max / p.min)) : v), fromR = (x) => (log ? p.min * Math.pow(p.max / p.min, x / 1000) : x);
+          input = el('input'); input.type = 'range'; input.min = log ? 0 : p.min; input.max = log ? 1000 : p.max; input.step = log ? 1 : p.step || 0.01; input.value = toR(P[p.id]);
+          input.oninput = () => { const v = fromR(+input.value); set(p.id, log ? Math.round(v) : v, val); };
+          input.ondblclick = () => { input.value = toR(p.default); set(p.id, p.default, val); };
+          val.textContent = fmt(p, P[p.id]);
+        }
+        r.append(nm, input, val); box.append(r);
+      });
+      body.append(box);
+    });
+    dlg.append(body);
+    ps.onchange = () => { if (ps.value === '') return; const p = syn.presets[+ps.value]; ch.ip = Object.assign({}, p.p); ch.ipName = p.name; S.beat.channelChanged(); dlg.close(); soundEditor(ch); setTimeout(() => audition(ch, { note: 60, vel: 0.9, dur: 0.8 }), 60); };
+    const row = el('div', 'row'); row.append(button('Done', 'btn primary', () => dlg.close())); dlg.append(row);
+    dlg.addEventListener('keydown', (e) => e.stopPropagation());
+    dlg.addEventListener('close', () => { dlg.remove(); renderBody(); });
+    document.body.appendChild(dlg); dlg.showModal();
+  }
+
+  /* ---------- sampler / slicer controls (Custom tab) ---------- */
+  function samplerTools(ch) {
+    const wrap = el('div', 'bl-samp');
+    const sp = Object.assign({}, BI().SAMPLER_DEFAULTS, ch.sp || {});
+    const sliced = Array.isArray(ch.slices) && ch.slices.length > 0;
+    const setSp = (k, v) => { ch.sp = Object.assign({}, ch.sp || {}, { [k]: v }); S.beat.channelChanged(); };
+    const buf = S.buffers.get(ch.assetId);
+    // waveform with slice markers / start-end
+    const cv = el('canvas', 'bl-wave'); cv.width = 900; cv.height = 70;
+    const draw = () => {
+      const g = cv.getContext('2d'), W = cv.width, H = cv.height; g.clearRect(0, 0, W, H);
+      if (!buf) return;
+      const d = buf.getChannelData(0), step = Math.max(1, Math.floor(d.length / W));
+      g.fillStyle = 'rgba(255,255,255,.06)'; g.fillRect(0, 0, W, H);
+      if (!sliced) { g.fillStyle = 'rgba(139,123,255,.18)'; g.fillRect(sp.start / 100 * W, 0, (sp.end - sp.start) / 100 * W, H); }
+      g.fillStyle = '#c9cdfa';
+      for (let x = 0; x < W; x++) { let m = 0; for (let i = x * step; i < Math.min(d.length, (x + 1) * step); i++) m = Math.max(m, Math.abs(d[i])); const h = m * H * 0.95; g.fillRect(x, (H - h) / 2, 1, Math.max(1, h)); }
+      if (sliced) { g.fillStyle = '#ffb02e'; g.font = '10px sans-serif'; ch.slices.forEach((t, i) => { const x = Math.round(t / buf.duration * W); g.fillRect(x, 0, 2, H); g.fillText(String(i + 1), x + 3, 10); }); }
+    };
+    draw();
+    wrap.append(cv);
+    const row = el('div', 'bl-rtools');
+    const knob = (k, label, min, max, step, unit) => {
+      const w = el('label', 'bl-knob'); const val = el('b'); const show = (v) => (val.textContent = Math.round(v * 10) / 10 + (unit || ''));
+      const r = slider(min, max, step, sp[k], (v) => { setSp(k, v); show(v); if (k === 'start' || k === 'end') { sp[k] = v; draw(); } });
+      r.onchange = () => audition(ch, { note: sliced ? (ch.root == null ? 48 : ch.root) : 60, vel: 0.9, dur: 0.6 });
+      show(sp[k]); w.append(label, r, val); return w;
+    };
+    const tog = (k, label) => { const b = button(label, 'btn ghost sm bl-tog' + (sp[k] ? ' on' : ''), () => { sp[k] = !sp[k]; setSp(k, sp[k]); b.classList.toggle('on', sp[k]); draw(); }); return b; };
+    row.append(el('span', 'bl-lbl', sliced ? 'Slicer' : 'Sampler'));
+    if (!sliced) row.append(knob('start', 'Start', 0, 99, 0.5, '%'), knob('end', 'End', 1, 100, 0.5, '%'), tog('loop', 'Loop'), tog('follow', 'Follow pitch'));
+    row.append(knob('attack', 'Attack', 0, 500, 1, 'ms'), knob('release', 'Release', 3, 2000, 1, 'ms'), knob('gain', 'Gain', -24, 12, 0.5, 'dB'), tog('reverse', 'Reverse'));
+    wrap.append(row);
+    // slicing
+    const srow = el('div', 'bl-rtools');
+    const how = el('select', 'bl-sel');
+    [['auto', 'Chop at the hits (auto)'], ['4', '4 equal slices'], ['8', '8 equal slices'], ['16', '16 equal slices'], ['32', '32 equal slices']].forEach(([v, t]) => { const o = el('option'); o.value = v; o.textContent = t; how.appendChild(o); });
+    const sens = slider(0, 100, 1, 50, () => {}); sens.style.width = '90px'; sens.style.flex = 'none'; sens.title = 'Auto-chop sensitivity (more = more slices)';
+    srow.append(el('span', 'bl-lbl', 'Slicer'), how, el('span', 'bl-lbl', 'Sensitivity'), sens,
+      button(sliced ? 'Re-chop' : '✂ Chop into slices', 'btn sm', () => {
+        if (!buf) return;
+        ch.slices = how.value === 'auto' ? BI().detectSlices(buf, { sensitivity: +sens.value / 100 }) : BI().equalSlices(buf, +how.value);
+        ch.root = 48; S.beat.channelChanged(); fillSlices(ch, buf); render();
+        S.toast(ch.slices.length + ' slices — each one is a key (from C3 up), and the pattern now plays your loop in time.');
+      }));
+    if (sliced) srow.append(button('Re-fill pattern', 'btn ghost sm', () => { fillSlices(ch, buf); renderBody(); }), button('Un-slice', 'btn ghost sm', () => { ch.slices = null; ch.root = 60; S.beat.channelChanged(); render(); }));
+    srow.append(el('span', 'bl-io', sliced ? 'Each slice is a key: move the notes around the piano roll to remix the loop.' : 'Chop a drum loop or a melody into slices you can play and rearrange (like Slicex).'));
+    wrap.append(srow);
+    return wrap;
+  }
+  /** Write the slices into the pattern so the loop plays back in time with the song's tempo. */
+  function fillSlices(ch, buf) {
+    const beat = S.beat.get(), sd = S.beat.stepDur(beat), total = S.beat.totalSteps(beat);
+    // fit the loop to a whole number of bars at the song tempo, then place each slice on the nearest step
+    const barDur = sd * beat.steps, bars = Math.max(1, Math.round(buf.duration / barDur)), scale = (bars * barDur) / buf.duration;
+    const notes = S.beat.notes(ch); notes.length = 0;
+    const root = ch.root == null ? 48 : ch.root;
+    ch.slices.forEach((t, i) => {
+      const step = Math.round((t * scale) / sd); if (step >= total) return;
+      const next = i + 1 < ch.slices.length ? Math.round((ch.slices[i + 1] * scale) / sd) : Math.round((buf.duration * scale) / sd);
+      notes.push({ step, note: root + i, len: Math.max(1, Math.min(total - step, next - step)), vel: 0.9 });
+    });
+    S.beat.channelChanged();
+  }
+
   /* ---------- Custom tab ---------- */
   function customTab(ch) {
     const wrap = el('div', 'bl-page');
@@ -518,7 +663,7 @@
         lib.append(grid);
       }).catch(() => { lib.textContent = ''; });
     }
-    if (ch && ch.assetId) { state.roll.sel = ch.id; wrap.append(rollTools(ch), pianoRoll(ch)); }
+    if (ch && ch.assetId) { state.roll.sel = ch.id; wrap.append(samplerTools(ch), rollTools(ch), pianoRoll(ch)); }
     else wrap.append(el('p', 'bl-io', 'Load or import a sound to start playing it.'));
     return wrap;
   }
@@ -642,7 +787,7 @@
     if (map[k] == null) { e.stopImmediatePropagation(); return; }
     e.preventDefault(); e.stopImmediatePropagation();
     if (e.repeat) return;
-    const base = (ch.type === 'bass' ? 36 : 60) + (st.oct || 0) * 12;
+    const base = (ch.type === 'custom' && Array.isArray(ch.slices) && ch.slices.length ? (ch.root == null ? 48 : ch.root) : ch.type === 'bass' ? 36 : 60) + (st.oct || 0) * 12;
     playNote(ch, base + map[k], state.kb.vel);
   }
   let midiTried = false;

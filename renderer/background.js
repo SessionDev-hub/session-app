@@ -4,7 +4,7 @@
   const S = window.Studio;
   const B = (S.background = {});
   const KEY = 'ps.background';
-  const DEFAULTS = { color: '#0b0c10', image: null, fit: 'cover', dim: 0.3, glass: 1, live: null, liveSpeed: 1 };
+  const DEFAULTS = { color: '#0b0c10', image: null, fit: 'cover', dim: 0.3, glass: 1, live: null, liveSpeed: 1, autoContrast: true };
   const BASE = { panel: [19, 20, 25], panel2: [28, 30, 37], canvas: [13, 14, 18] };
   let cfg = Object.assign({}, DEFAULTS);
   let layer;
@@ -23,6 +23,40 @@
     return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + cfg.glass + ')';
   };
   B.glass = () => cfg.glass;
+
+  /* ---------- keep text readable ----------
+   * Panels are see-through, so a bright picture or colour behind them makes the light text hard to read.
+   * Measure how bright the background is and darken it just enough that panels stay dark under the text. */
+  const lumOf = (rgb) => { const f = (v) => { v /= 255; return v <= 0.04 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(rgb[0]) + 0.7152 * f(rgb[1]) + 0.0722 * f(rgb[2]); };
+  let imgLum = { src: null, v: 0.3 };
+  function measureImage(src) {
+    if (!src || imgLum.src === src) return;
+    imgLum = { src, v: 0.3 };
+    const im = new Image();
+    im.onload = () => {
+      try {
+        const c = document.createElement('canvas'); c.width = c.height = 32; const g = c.getContext('2d');
+        g.drawImage(im, 0, 0, 32, 32); const d = g.getImageData(0, 0, 32, 32).data;
+        let s = 0; for (let i = 0; i < d.length; i += 4) s += lumOf([d[i], d[i + 1], d[i + 2]]);
+        if (imgLum.src === src) { imgLum.v = s / (d.length / 4); apply(); }
+      } catch (e) {}
+    };
+    im.src = src;
+  }
+  /** How much the background must be darkened (0..0.85) so panels stay dark enough for light text. */
+  function neededDim() {
+    if (cfg.autoContrast === false) return 0;
+    const g = cfg.glass;
+    if (g >= 0.98) return 0;
+    let L = lumOf(hexToRgb(cfg.color));
+    if (cfg.image) L = imgLum.v;
+    if (cfg.live) L = cfg.live === 'video' ? 0.35 : 0.12;
+    const panelL = 0.007, target = 0.06;                  // ≈ a dark grey under the text
+    const behind = (target - g * panelL) / Math.max(1e-4, 1 - g);
+    if (L <= behind) return 0;
+    return Math.min(0.85, 1 - behind / L);
+  }
+  B.neededDim = neededDim;
 
   function apply() {
     const root = document.documentElement.style;
@@ -52,7 +86,10 @@
     layer.style.backgroundSize = cfg.fit === 'tile' ? 'auto' : cfg.fit;
     layer.style.backgroundRepeat = cfg.fit === 'tile' ? 'repeat' : 'no-repeat';
     layer.style.backgroundPosition = 'center';
-    layer.style.setProperty('--dim', cfg.image || cfg.live ? cfg.dim : 0);
+    measureImage(cfg.image);
+    const need = neededDim();
+    layer.style.setProperty('--dim', Math.max(cfg.image || cfg.live ? cfg.dim : 0, need));
+    document.documentElement.classList.toggle('bg-bright', need > 0.05);
     applyLive();
     if (S.timeline) S.timeline.dirty = true;
   }
@@ -188,6 +225,7 @@
       <div class="param"><label>Picture fit</label><select id="bg-fit" class="sel"><option value="cover">Fill the window</option><option value="contain">Fit inside</option><option value="tile">Tile</option></select><span></span></div>
       <div class="param"><label>Darken picture</label><input type="range" id="bg-dim" min="0" max="85" step="1"><span class="val" id="bg-dim-v"></span></div>
       <div class="param"><label>Panel opacity</label><input type="range" id="bg-glass" min="25" max="100" step="1"><span class="val" id="bg-glass-v"></span></div>
+      <label style="display:flex;gap:8px;align-items:center;font-size:12.5px;margin:4px 0 0 130px"><input type="checkbox" id="bg-auto"> Keep text readable (darkens bright backgrounds just enough)</label>
       <p class="hint" style="color:var(--dim);margin:8px 0">Lower the panel opacity to see more of your picture or colour behind the timeline and mixer. You can also drop a picture file onto the window. Saved on this computer only.</p>
       <input type="file" id="bg-file" accept="image/*" hidden>
       <div class="row" style="justify-content:flex-start"><button class="btn" id="bg-reset">Reset background</button></div>`;
@@ -200,6 +238,7 @@
       q('bg-dim-v').textContent = Math.round(c.dim * 100) + '%';
       q('bg-glass').value = Math.round(c.glass * 100);
       q('bg-glass-v').textContent = Math.round(c.glass * 100) + '%';
+      q('bg-auto').checked = c.autoContrast !== false;
       q('bg-dim').disabled = !c.image && !c.live;
       q('bg-fit').disabled = q('bg-clear').disabled = !c.image;
       q('bg-live').value = c.live || '';
@@ -207,6 +246,7 @@
       q('bg-live-speed-v').textContent = Math.round((c.liveSpeed || 1) * 100) + '%';
       q('bg-live-speed').disabled = !c.live;
     };
+    q('bg-auto').onchange = (e) => { B.set({ autoContrast: e.target.checked }); sync(); };
     const ls = q('bg-live');
     ls.innerHTML = '<option value="">Off</option>' + Object.keys(SCENES).map((k) => '<option value="' + k + '">' + SCENES[k].name + '</option>').join('') + '<option value="video">Your video / GIF</option>';
     ls.onchange = async () => {

@@ -83,7 +83,7 @@ input, textarea, [contenteditable="true"] { -webkit-user-select: text; user-sele
 .btn.sm { height: 26px; padding: 0 9px; font-size: 12px; }
 .btn.icon-only { padding: 0 8px; }
 .btn.icon-only span { font-size: 11px; font-weight: 600; letter-spacing: 0.02em; }
-.btn.primary { background: var(--accent-grad); border-color: transparent; color: #fff; font-weight: 600; box-shadow: 0 4px 14px rgba(var(--accent-deep-rgb), 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2); }
+.btn.primary { background: var(--accent-grad); border-color: transparent; color: var(--on-accent, #fff); font-weight: 600; box-shadow: 0 4px 14px rgba(var(--accent-deep-rgb), 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2); }
 .btn.primary:hover { filter: brightness(1.08); background: var(--accent-grad); }
 .btn.accent { background: rgba(var(--accent-rgb), 0.14); border-color: rgba(var(--accent-rgb), 0.35); color: var(--accent-soft); font-weight: 600; }
 .btn.accent:hover { background: rgba(var(--accent-rgb), 0.24); }
@@ -682,7 +682,7 @@ input.fader, .knob, .pk-dial, .pw-head, #mix-split { touch-action: none; }
 .vt { display: inline-flex; align-items: center; gap: 6px; padding: 5px 13px; border: none; background: none; color: #b9bcc8; border-radius: 7px; cursor: pointer; font-size: 12.5px; transition: background 0.14s var(--ease), color 0.14s var(--ease); }
 .vt svg { opacity: 0.85; }
 .vt:hover { color: #fff; }
-.vt.on { background: var(--accent); color: #fff; }
+.vt.on { background: var(--accent); color: var(--on-accent, #fff); }
 .vt.on svg { opacity: 1; }
 .vt-sp { flex: 1; }
 
@@ -911,7 +911,7 @@ html.ui-flat .btn, html.ui-flat .btn.ghost, html.ui-flat .tbtn, html.ui-flat .to
 html.ui-flat .btn:hover, html.ui-flat .tbtn:hover, html.ui-flat .tool:hover, html.ui-flat .tb:hover, html.ui-flat .fx-add:hover, html.ui-flat .add-track:hover, html.ui-flat .vibe-chip:hover, html.ui-flat .pw-ib:hover { background: var(--f-4) !important; color: #fff; }
 html.ui-flat .btn { border-radius: 10px; }
 html.ui-flat .tb { border-radius: 7px; color: #b9bcc7; }
-html.ui-flat .btn.primary, html.ui-flat .btn.primary:hover, html.ui-flat .bs-chip.on { background: var(--accent) !important; color: #fff !important; }
+html.ui-flat .btn.primary, html.ui-flat .btn.primary:hover, html.ui-flat .bs-chip.on { background: var(--accent) !important; color: var(--on-accent, #fff) !important; }
 html.ui-flat .btn.primary:hover { filter: brightness(1.1) !important; }
 html.ui-flat .btn.accent { background: color-mix(in srgb, var(--accent) 30%, var(--f-2)) !important; color: #fff; }
 html.ui-flat .btn.toggle.on { background: #0e7490 !important; color: #fff !important; }
@@ -920,7 +920,7 @@ html.ui-flat .tbtn { background: var(--f-3) !important; }
 html.ui-flat .tbtn.rec { color: var(--rec); }
 html.ui-flat .tbtn.rec.active { background: var(--rec) !important; color: #fff; animation: none; }
 html.ui-flat .tbtn.play.active { background: var(--ok) !important; color: #05261a; }
-html.ui-flat .tool.active { background: var(--accent) !important; color: #fff; }
+html.ui-flat .tool.active { background: var(--accent) !important; color: var(--on-accent, #fff); }
 html.ui-flat .tool-thumb { background: var(--accent) !important; box-shadow: none !important; }
 html.ui-flat .tool-thumb ~ .tool, html.ui-flat .tools .tool { background: transparent !important; }
 html.ui-flat .tools .tool:hover { background: var(--f-4) !important; }
@@ -929,7 +929,7 @@ html.ui-flat .tabrow { border-bottom: 0; gap: 4px; }
 html.ui-flat .uitab { border-radius: 10px; border-bottom: 0 !important; padding: 7px 14px; margin-bottom: 4px; }
 html.ui-flat .uitab:hover { background: var(--f-2); }
 html.ui-flat .uitab.on { background: var(--f-3) !important; color: #fff; box-shadow: inset 0 -2px 0 var(--accent); }
-html.ui-flat .seg-b.on { background: var(--accent) !important; box-shadow: none !important; color: #fff; }
+html.ui-flat .seg-b.on { background: var(--accent) !important; box-shadow: none !important; color: var(--on-accent, #fff); }
 html.ui-flat .set-tab.on { background: var(--accent) !important; }
 /* track headers + fx chips */
 html.ui-flat .trk:hover { background: var(--f-2); }
@@ -947,7 +947,7 @@ html.ui-flat .knob .k-cap { fill: var(--f-4); stroke: none; }
 html.ui-flat .knob .k-track { stroke: var(--f-0); }
 /* menus, dialogs, panels */
 html.ui-flat dialog.modal, html.ui-flat .ctxmenu, html.ui-flat .fx-picker, html.ui-flat .toast, html.ui-flat .update-bar, html.ui-flat .bg-card { background: var(--f-1) !important; border: 1px solid var(--line-hi) !important; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5) !important; }
-html.ui-flat .ctxmenu .item:hover, html.ui-flat .fp-item.active { background: var(--accent) !important; color: #fff; }
+html.ui-flat .ctxmenu .item:hover, html.ui-flat .fp-item.active { background: var(--accent) !important; color: var(--on-accent, #fff); }
 html.ui-flat .set-pane, html.ui-flat .pw-sec, html.ui-flat .mt-preset, html.ui-flat .snd-row, html.ui-flat .vd-song { background: var(--f-2) !important; border: 0 !important; box-shadow: none !important; }
 html.ui-flat .set-tabs { background: var(--f-0) !important; }
 html.ui-flat .set-head, html.ui-flat .vault-dlg, html.ui-flat .pw { background: var(--f-1) !important; }
@@ -961,7 +961,7 @@ html.ui-flat .bl-card, html.ui-flat .bs-card { background: var(--f-2) !important
 .th-custom input[type=color] { width: 40px; height: 34px; border: 1px solid var(--line-hi); border-radius: 8px; background: transparent; padding: 2px; cursor: pointer; }
 .th-seg { display: inline-flex; border: 1px solid var(--line-hi); border-radius: 10px; overflow: hidden; margin-top: 6px; }
 .th-seg button { background: transparent; border: 0; color: var(--dim); padding: 8px 18px; font: 600 12.5px var(--font); cursor: pointer; }
-.th-seg button.on { background: var(--accent); color: #fff; }
+.th-seg button.on { background: var(--accent); color: var(--on-accent, #fff); }
 
 /* ---------- live backgrounds (compositor-only motion) ---------- */
 #bg-layer { contain: strict; }
@@ -1023,3 +1023,21 @@ html.ui-flat #beatlab .bl-blk button { background: var(--f-0); border: 0; }
 html.ui-flat #beatlab .bl-key.black { background: var(--f-0); }
 html.ui-flat #beatstore .bs-card { background: var(--f-2); border: 0; }
 html.ui-flat #beatstore .bs-info span { background: var(--f-3); }
+
+/* ---------- text & icons that adapt to what's behind them ----------
+   Small grey labels used fixed dark greys, which vanish on lighter panels. They're now see-through white
+   (so they follow the panel colour) with a soft shadow that keeps them readable on any background. */
+html:not(.ui-flat) { --dim: rgba(236, 238, 248, 0.62); --faint: rgba(236, 238, 248, 0.42); }
+html:not(.ui-flat) .lbl, html:not(.ui-flat) .scale, html:not(.ui-flat) .mix-hint, html:not(.ui-flat) .pill-ic, html:not(.ui-flat) .tb,
+html:not(.ui-flat) .fx-add, html:not(.ui-flat) .peak, html:not(.ui-flat) .snum, html:not(.ui-flat) .vt, html:not(.ui-flat) .uitab,
+html:not(.ui-flat) #tl-headers .ruler-spacer, html:not(.ui-flat) .strip .lbl, html:not(.ui-flat) .hint { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55); }
+html:not(.ui-flat) .pill-ic svg, html:not(.ui-flat) .vt svg, html:not(.ui-flat) .tool svg { filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.55)); }
+.scale { color: var(--faint); }
+.fx-add { color: var(--dim); border-color: rgba(255, 255, 255, 0.22); }
+.pill-ic { color: var(--dim); }
+/* on a light accent (gold, cyan, silver…) everything sitting ON the accent switches to dark text/icons */
+html.accent-light .btn.primary svg, html.accent-light .vt.on svg, html.accent-light .tool.active svg { color: var(--on-accent); }
+html.accent-light .vt.on, html.accent-light .btn.primary, html.accent-light .seg-b.on, html.accent-light .th-seg button.on { text-shadow: none; }
+html.accent-light .tool-thumb ~ .tool.active { color: var(--on-accent); }
+#view-tabs, #view-tabs * { -webkit-user-select: none; user-select: none; }
+html.accent-light #beatlab .bl-tab.on, html.accent-light #beatlab .bl-seg button.on, html.accent-light #beatlab .bl-tog.on, html.accent-light .set-tab.on { color: var(--on-accent); }

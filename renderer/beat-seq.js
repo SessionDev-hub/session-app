@@ -200,7 +200,11 @@
     const ctx = new OfflineAudioContext(2, Math.ceil(lenSec * sr), sr);
     const parts = buildBus(ctx, b);
     for (let r = 0; r < repeats; r++) for (const sg of seq.segs) schedulePattern(ctx, b, sg.p, parts.chans, r * seq.total + sg.start, seq.sd);
-    return ctx.startRendering();
+    const raw = await ctx.startRendering();
+    // the bus limiter looks 6 ms ahead (so it delays everything by 6 ms): trim that off so the beat lands exactly on the grid
+    const skip = Math.round(0.006 * sr), out = new AudioBuffer({ numberOfChannels: raw.numberOfChannels, length: raw.length - skip, sampleRate: sr });
+    for (let c = 0; c < raw.numberOfChannels; c++) out.getChannelData(c).set(raw.getChannelData(c).subarray(skip));
+    return out;
   };
 
   /* ---------- editing helpers ---------- */

@@ -7,6 +7,18 @@
  * dropped), and empties PATCH-NOTES-NEXT.txt for the next round. */
 window.__PATCH_NOTES__ = [
   {
+    version: '0.25.27',
+    date: '2026-11-14',
+    changes: [
+      '5 new instrument plugins in Beat Lab: Session Synth (2 oscillators, sub, noise, unison, filter and LFO), Session FM (e-pianos, bells, FM bass), Session Acid (303-style squelch), Session Pluck (real-sounding guitars, harp, koto, bass guitar) and Session Organ (9 drawbars). 41 presets, and an Edit sound window with every knob. Add one with + Synth in the channel rack or pick it in the Keys tab.',
+      'Beat Lab sampler and slicer: load any sound and set its start, end, attack, release, loop and reverse. Chop a loop at its hits (or into 4 to 32 equal slices): each slice is a key, and the pattern plays your loop in time so you can rearrange it.',
+      '8 new FL-style effects: Time Bender (half-time, tape stop, stutters, build-up rolls, screw and rewind, locked to your tempo), Vocoder, Harmonizer, One-Knob Loud, Filter Motion, Frequency Shifter, Stereo Shaper and Space Verb.',
+      'The Pitch Shifter (and the Octaver and Harmonizer) now lines up its splices with the waveform, so shifted vocals and notes come out clean, steady and in tune instead of warbly.',
+      'Beat Lab beats now land exactly on the grid when added to a track (they used to come in 6 ms late).',
+      'Text and icons stay readable on any background: small labels follow the panel colour, Session darkens bright pictures just enough (Settings, Appearance, Keep text readable), and buttons on light accent colours like gold, cyan or silver now use dark text.',
+    ],
+  },
+  {
     version: '0.25.26',
     date: '2026-11-13',
     changes: [
